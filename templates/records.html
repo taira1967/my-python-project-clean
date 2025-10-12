@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>電気代一覧</title>
+</head>
+<body>
+    <h1>電気代一覧</h1>
+    <table border="1">
+        <tr>
+            <th>年月</th>
+            <th>使用量（kWh）</th>
+            <th>単価（円/kWh）</th>
+            <th>電気代（円）</th>
+        </tr>
+        {% for record in records %}
+        <tr>
+            <td>{{ record.年月 }}</td>
+            <td>{{ record.使用量 }}</td>
+            <td>{{ record.単価 }}</td>
+            <td>{{ record.電気代 }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
+</table>
+
+<h2>電気代の推移グラフ</h2>
+<img src="{{ url_for('graph') }}" alt="電気代グラフ">
+</body>
+</html>

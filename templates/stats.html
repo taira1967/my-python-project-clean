@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>統計分析</title>
+</head>
+<body>
+    <h1>料金プランの統計分析</h1>
+    <table border="1">
+        <tr>
+            <th>プラン名</th>
+            <th>平均（円）</th>
+            <th>最大（円）</th>
+            <th>最小（円）</th>
+        </tr>
+        {% for name, values in stats.items() %}
+        <tr>
+            <td>{{ name }}</td>
+            <td>{{ values.平均 }}</td>
+            <td>{{ values.最大 }}</td>
+            <td>{{ values.最小 }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

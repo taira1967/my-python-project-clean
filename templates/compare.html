@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>料金プラン比較</title>
+</head>
+<body>
+    <h1>料金プラン比較</h1>
+    <table border="1">
+        <tr>
+            <th>年月</th>
+            <th>標準プラン（円）</th>
+            <th>夜間割引プラン（円）</th>
+            <th>エコプラン（円）</th>
+        </tr>
+        {% for row in results %}
+        <tr>
+            <td>{{ row.年月 }}</td>
+            <td>{{ row.標準プラン }}</td>
+            <td>{{ row.夜間割引プラン }}</td>
+            <td>{{ row.エコプラン }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
