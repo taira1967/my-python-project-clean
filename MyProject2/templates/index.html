@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>電気代比較ツール - MyProject2</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .nav-buttons {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .nav-buttons a {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+        }
+        .nav-buttons a:hover {
+            background-color: #2980b9;
+        }
+        .nav-buttons a.ocr {
+            background-color: #e74c3c;
+        }
+        .nav-buttons a.ocr:hover {
+            background-color: #c0392b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .graph-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .graph-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .no-data {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+            margin: 40px 0;
+        }
+        .flash-messages {
+            margin: 20px 0;
+        }
+        .flash-success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #c3e6cb;
+        }
+        .flash-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #f5c6cb;
+        }
+        .project-info {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .project-info h3 {
+            color: #2c3e50;
+            margin: 0 0 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ 電気代管理システム - MyProject2</h1>
+        
+        <div class="project-info">
+            <h3>🚀 改良版アプリケーション</h3>
+            <p>シンプルで安定した電気代管理システムです。OCR機能で検針票から自動データ抽出が可能です。</p>
+        </div>
+        
+        <!-- フラッシュメッセージ -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="flash-success">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- ナビゲーションボタン -->
+        <div class="nav-buttons">
+            <a href="/ocr">🔍 OCR処理</a>
+            <a href="/graph">📈 グラフ表示</a>
+            <a href="/">📊 データ一覧</a>
+        </div>
+        
+        <!-- データ一覧 -->
+        <h2>📊 電気代データ一覧</h2>
+        {% if records %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>年月</th>
+                        <th>使用量（kWh）</th>
+                        <th>単価（円/kWh）</th>
+                        <th>電気代（円）</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>{{ record.年月 }}</td>
+                        <td>{{ "%.1f"|format(record.使用量) }}</td>
+                        <td>{{ "%.1f"|format(record.単価) }}</td>
+                        <td>{{ "%.0f"|format(record.電気代) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- グラフ表示 -->
+            <div class="graph-container">
+                <h3>📈 電気代の推移グラフ</h3>
+                <img src="{{ url_for('graph') }}" alt="電気代グラフ">
+            </div>
+        {% else %}
+            <div class="no-data">
+                <h3>📝 データがありません</h3>
+                <p>OCR処理ページで検針票の画像をアップロードして、データを追加してください。</p>
+                <a href="/ocr" class="nav-buttons" style="display: inline-block; margin-top: 20px;">🔍 OCR処理を開始</a>
+            </div>
+    {% endif %}
+</div>
+
+<footer>
+    <p>表示確認済み！2025年10月17日 by taira1967</p>
+</footer>
+</body>
+</html>
+
+
+
+
+
