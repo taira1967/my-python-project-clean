@@ -1,4 +1,26 @@
-__pycache__/
+﻿__pycache__/
 *.pyc
 .env
+.env.local
+*.local
 .DS_Store
+
+# Node modules
+node_modules/
+package-lock.json
+
+# Python virtual environment
+venv/
+env/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Uploads directory
+uploads/
+
+# Temporary files
+*.log
+*.tmp
