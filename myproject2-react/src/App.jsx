@@ -482,12 +482,12 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
   
   return (
     <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
-      <header className="bg-indigo-600 text-white p-3 md:p-5 shadow-lg flex justify-between items-center">
+      <header className="bg-indigo-600 text-white p-2 md:p-3 shadow-lg flex justify-between items-center">
         <div>
-          <h1 className="text-lg md:text-3xl font-bold">💡 電気料金比較表</h1>
-          <p className="text-xs md:text-sm opacity-90 mt-1">ようこそ, {isAdmin ? `管理者 ${currentUser}` : currentUser || 'ゲストユーザー'} さん</p>
+          <h1 className="text-base md:text-lg font-bold">💡 電気料金比較表</h1>
+          <p className="text-xs opacity-90">ようこそ, {isAdmin ? `管理者 ${currentUser}` : currentUser || 'ゲストユーザー'} さん</p>
         </div>
-        <button onClick={onLogout} className="px-3 py-2 md:px-4 md:py-2 bg-red-500 hover:bg-red-600 text-white text-sm md:text-base font-semibold rounded-lg shadow-md">ログアウト</button>
+        <button onClick={onLogout} className="px-2 py-1 md:px-3 md:py-2 bg-red-500 hover:bg-red-600 text-white text-xs md:text-sm font-semibold rounded-lg shadow-md">ログアウト</button>
       </header>
       <main className="container mx-auto p-4 md:p-8 flex-grow">
         {message && <div className="p-3 mb-6 rounded-lg bg-indigo-100 text-indigo-700 font-medium shadow-md">{message}</div>}
