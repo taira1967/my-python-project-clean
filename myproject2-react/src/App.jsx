@@ -498,10 +498,10 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
           {uploadedImageBase64 && (
             <div className="flex flex-col md:flex-row gap-4 mb-4 items-start">
               <div className="md:w-1/3 w-full border border-gray-300 rounded-lg p-2 bg-gray-50">
-                <img src={uploadedImageBase64} alt="Uploaded Bill" className="w-full max-w-sm h-auto rounded-lg shadow-md" />
+                <img src={uploadedImageBase64} alt="Uploaded Bill" className="w-full max-w-xs max-h-64 object-contain h-auto rounded-lg shadow-md" />
               </div>
               <div className="md:w-2/3 w-full space-y-3">
-                <button onClick={handleOCRProcess} disabled={isProcessing} className="w-full px-6 py-3 border border-transparent rounded-lg shadow-lg text-white font-semibold bg-green-600 hover:bg-green-700 disabled:opacity-50 flex items-center justify-center">
+                <button onClick={handleOCRProcess} disabled={isProcessing} className="w-full px-6 py-3 border border-transparent rounded-lg shadow-lg text-white font-semibold bg-green-400 hover:bg-green-500 disabled:opacity-50 flex items-center justify-center">
                   {isProcessing ? 'AI解析中...' : 'OCR解析を実行する'}
                 </button>
                 {ocrResultJson && (
@@ -531,7 +531,7 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
               <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">日数 (日) <span className="text-red-500">*</span></label><input type="number" name="periodDays" value={newBillData.periodDays} onChange={handleChange} placeholder="例: 30" required step="1" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" /></div>
             </div>
             <div><label className="block text-sm font-medium text-gray-700">メモ/備考</label><textarea name="notes" value={newBillData.notes} onChange={handleChange} rows="2" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" placeholder="エアコン使用状況や季節変動など..."></textarea></div>
-            <button type="submit" disabled={!db || !userId} className="w-full md:w-auto px-6 py-3 border border-transparent rounded-lg shadow-lg text-white font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50">データを登録する</button>
+            <button type="submit" disabled={!db || !userId} className="w-full md:w-auto px-6 py-3 border border-transparent rounded-lg shadow-lg text-white font-semibold bg-sky-400 hover:bg-sky-500 disabled:opacity-50">データを登録する</button>
           </form>
         </section>
         <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl">
@@ -547,7 +547,7 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                 </div>
               )}
               <div className="flex items-center space-x-2"><label htmlFor="recordFilter" className="text-sm font-medium text-gray-700">契約種別フィルタ:</label><select id="recordFilter" value={selectedFilterMode} onChange={(e) => setSelectedFilterMode(e.target.value)} className="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"><option value="All_Records">{getFilterModeLabel('All_Records')}</option><option value="Contract_Alpha">{getFilterModeLabel('Contract_Alpha')}</option><option value="Contract_Toukijibetsu">{getFilterModeLabel('Contract_Toukijibetsu')}</option><option value="Contract_Combined">{getFilterModeLabel('Contract_Combined')}</option></select></div>
-              <button onClick={handleExportCSV} disabled={filteredBills.length === 0} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 disabled:opacity-50 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 9.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 7.414V13a1 1 0 11-2 0V7.414L6.293 9.707z" clipRule="evenodd" /></svg>CSV出力</button>
+              <button onClick={handleExportCSV} disabled={filteredBills.length === 0} className="px-4 py-2 bg-green-400 text-white font-semibold rounded-lg shadow-md hover:bg-green-500 disabled:opacity-50 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 9.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 7.414V13a1 1 0 11-2 0V7.414L6.293 9.707z" clipRule="evenodd" /></svg>CSV出力</button>
             </div>
           </div>
           <div className="overflow-x-auto">
