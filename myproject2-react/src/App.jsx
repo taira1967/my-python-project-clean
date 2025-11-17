@@ -37,10 +37,10 @@ const LoginScreen = ({ onLogin, onGuestLogin, loginError }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 space-y-6">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-6 md:p-8 space-y-4 md:space-y-6">
         <div className="text-center">
-            <h1 className="text-3xl font-bold text-indigo-600">💡 電気料金比較表</h1>
-            <p className="mt-2 text-gray-600">ログインまたはゲストとして試してください。</p>
+            <h1 className="text-xl md:text-3xl font-bold text-indigo-600">💡 電気料金比較表</h1>
+            <p className="mt-2 text-sm md:text-base text-gray-600">ログインまたはゲストとして試してください。</p>
       </div>
         
         {/* ゲストログインボタン（試作品用） */}
@@ -482,23 +482,23 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
   
   return (
     <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
-      <header className="bg-indigo-600 text-white p-5 shadow-lg flex justify-between items-center">
+      <header className="bg-indigo-600 text-white p-3 md:p-5 shadow-lg flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">💡 電気料金（日別）期間比較表</h1>
-          <p className="text-sm opacity-90 mt-1">ようこそ, {isAdmin ? `管理者 ${currentUser}` : currentUser || 'ゲストユーザー'} さん</p>
+          <h1 className="text-lg md:text-3xl font-bold">💡 電気料金比較表</h1>
+          <p className="text-xs md:text-sm opacity-90 mt-1">ようこそ, {isAdmin ? `管理者 ${currentUser}` : currentUser || 'ゲストユーザー'} さん</p>
         </div>
-        <button onClick={onLogout} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-md">ログアウト</button>
+        <button onClick={onLogout} className="px-3 py-2 md:px-4 md:py-2 bg-red-500 hover:bg-red-600 text-white text-sm md:text-base font-semibold rounded-lg shadow-md">ログアウト</button>
       </header>
       <main className="container mx-auto p-4 md:p-8 flex-grow">
         {message && <div className="p-3 mb-6 rounded-lg bg-indigo-100 text-indigo-700 font-medium shadow-md">{message}</div>}
         <section className="mb-8">{renderComparison()}</section>
-        <section className="bg-white p-6 rounded-2xl shadow-xl mb-10 border border-indigo-200">
-          <h2 className="text-2xl font-bold text-indigo-800 mb-5 border-b pb-2">📸 OCR機能: 検針票の画像をアップロード</h2>
+        <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl mb-6 md:mb-10 border border-indigo-200">
+          <h2 className="text-lg md:text-2xl font-bold text-indigo-800 mb-3 md:mb-5 border-b pb-2">📸 OCR機能: 検針票の画像をアップロード</h2>
           <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isProcessing} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 mb-4" />
           {uploadedImageBase64 && (
             <div className="flex flex-col md:flex-row gap-4 mb-4 items-start">
               <div className="md:w-1/3 w-full border border-gray-300 rounded-lg p-2 bg-gray-50">
-                <img src={uploadedImageBase64} alt="Uploaded Bill" className="max-w-full h-auto rounded-lg shadow-md" />
+                <img src={uploadedImageBase64} alt="Uploaded Bill" className="w-full max-w-sm h-auto rounded-lg shadow-md" />
               </div>
               <div className="md:w-2/3 w-full space-y-3">
                 <button onClick={handleOCRProcess} disabled={isProcessing} className="w-full px-6 py-3 border border-transparent rounded-lg shadow-lg text-white font-semibold bg-green-600 hover:bg-green-700 disabled:opacity-50 flex items-center justify-center">
@@ -513,31 +513,31 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
             </div>
           )}
         </section>
-        <section className="bg-white p-6 rounded-2xl shadow-xl mb-10 border border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-800 mb-5 border-b pb-2">📝 検針票データの登録・編集</h2>
+        <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl mb-6 md:mb-10 border border-gray-200">
+          <h2 className="text-lg md:text-2xl font-bold text-gray-800 mb-3 md:mb-5 border-b pb-2">📝 検針票データの登録・編集</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               <div className="lg:col-span-2">
                 <label className="block text-sm font-medium text-gray-700">記録者名</label>
-                <input type="text" name="recorderName" value={newBillData.recorderName} onChange={handleChange} readOnly={!isAdmin} className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border font-semibold text-lg ${!isAdmin ? 'bg-gray-100' : ''}`} />
+                <input type="text" name="recorderName" value={newBillData.recorderName} onChange={handleChange} readOnly={!isAdmin} className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border text-base md:text-lg font-semibold ${!isAdmin ? 'bg-gray-100' : ''}`} />
               </div>
               <div className="lg:col-span-2">
                 <label className="block text-sm font-medium text-gray-700">契約種別 (必須) <span className="text-red-500">*</span></label>
-                <input type="text" name="contractType" value={newBillData.contractType} onChange={handleChange} placeholder="例: 低圧電力α, 灯季時別" required className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500 font-semibold text-lg" />
+                <input type="text" name="contractType" value={newBillData.contractType} onChange={handleChange} placeholder="例: 低圧電力α, 灯季時別" required className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg font-semibold" />
               </div>
-              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">料金年月分</label><input type="text" name="billingDate" value={newBillData.billingDate} onChange={handleChange} placeholder="例: R7 6月分" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500" /></div>
-              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">使用量 (kWh) <span className="text-red-500">*</span></label><input type="number" name="usageKwh" value={newBillData.usageKwh} onChange={handleChange} placeholder="例: 350.5" required step="0.01" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500" /></div>
-              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">合計料金 (円) <span className="text-red-500">*</span></label><input type="number" name="totalCost" value={newBillData.totalCost} onChange={handleChange} placeholder="例: 12500" required step="1" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500" /></div>
-              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">日数 (日) <span className="text-red-500">*</span></label><input type="number" name="periodDays" value={newBillData.periodDays} onChange={handleChange} placeholder="例: 30" required step="1" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500" /></div>
+              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">料金年月分</label><input type="text" name="billingDate" value={newBillData.billingDate} onChange={handleChange} placeholder="例: R7 6月分" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" /></div>
+              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">使用量 (kWh) <span className="text-red-500">*</span></label><input type="number" name="usageKwh" value={newBillData.usageKwh} onChange={handleChange} placeholder="例: 350.5" required step="0.01" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" /></div>
+              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">合計料金 (円) <span className="text-red-500">*</span></label><input type="number" name="totalCost" value={newBillData.totalCost} onChange={handleChange} placeholder="例: 12500" required step="1" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" /></div>
+              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">日数 (日) <span className="text-red-500">*</span></label><input type="number" name="periodDays" value={newBillData.periodDays} onChange={handleChange} placeholder="例: 30" required step="1" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" /></div>
             </div>
-            <div><label className="block text-sm font-medium text-gray-700">メモ/備考</label><textarea name="notes" value={newBillData.notes} onChange={handleChange} rows="2" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500" placeholder="エアコン使用状況や季節変動など..."></textarea></div>
-            <button type="submit" disabled={!db || !userId} className="w-full md:w-auto px-6 py-3 border border-transparent rounded-lg shadow-lg text-white font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">データを登録する</button>
+            <div><label className="block text-sm font-medium text-gray-700">メモ/備考</label><textarea name="notes" value={newBillData.notes} onChange={handleChange} rows="2" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" placeholder="エアコン使用状況や季節変動など..."></textarea></div>
+            <button type="submit" disabled={!db || !userId} className="w-full md:w-auto px-6 py-3 border border-transparent rounded-lg shadow-lg text-white font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50">データを登録する</button>
           </form>
         </section>
-        <section className="bg-white p-6 rounded-2xl shadow-xl">
-          <div className="flex justify-between items-center mb-5 border-b pb-2">
-            <h2 className="text-2xl font-bold text-gray-800">📋 登録履歴 ({filteredBills.length} 件)</h2>
-            <div className="flex items-center space-x-4">
+        <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 md:mb-5 border-b pb-2 gap-3">
+            <h2 className="text-lg md:text-2xl font-bold text-gray-800">📋 登録履歴 ({filteredBills.length} 件)</h2>
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-4 w-full md:w-auto">
               {isAdmin && (
                 <div className="flex items-center space-x-2">
                   <label htmlFor="recorderFilter" className="text-sm font-medium text-gray-700">記録者フィルタ:</label>
