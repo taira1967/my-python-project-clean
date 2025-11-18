@@ -106,6 +106,10 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
   const [adminRecorderFilter, setAdminRecorderFilter] = useState('all');
   const [message, setMessage] = useState('');
   
+  // 画像拡大機能用のstate（老眼対応）
+  const [isImageZoomed, setIsImageZoomed] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  
   const [newBillData, setNewBillData] = useState({
     recorderName: currentUser || 'ゲストユーザー',
     contractType: '',
@@ -177,9 +181,56 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     return () => unsubscribe();
   }, [db, userId, appId, isAdmin]);
 
+  // 料金年月分を統一フォーマットに正規化する関数（老眼対応・合算機能対応）
+  const normalizeBillingDate = (rawDate) => {
+    if (!rawDate) return '';
+    
+    let normalized = rawDate.trim();
+    
+    // 1. 令和→R変換
+    normalized = normalized.replace(/令和/g, 'R');
+    normalized = normalized.replace(/れいわ/g, 'R');
+    
+    // 2. 全角→半角変換
+    normalized = normalized.replace(/[Ｒ]/g, 'R');
+    normalized = normalized.replace(/[０-９]/g, (s) => 
+      String.fromCharCode(s.charCodeAt(0) - 0xFEE0)
+    );
+    
+    // 3. スペースの正規化（Rと数字の間にスペースを適切に挿入）
+    // 例：R76月分 → R7 6月分
+    normalized = normalized.replace(/R\s*(\d+)\s*(\d+月分)/g, 'R$1 $2');
+    
+    // 4. Rの後の数字と月の間にスペースがない場合の処理
+    // 例：R7 6月分、R76月分 など
+    if (!normalized.match(/R\d+\s+\d+月分/)) {
+      // R[数字][数字]月分 のパターンを探す
+      normalized = normalized.replace(/R(\d+)(\d)月分/g, 'R$1 $2月分');
+    }
+    
+    // 5. 余分なスペースを削除
+    normalized = normalized.replace(/\s+/g, ' ');
+    
+    // 6. 最終フォーマットチェック（R[数字] [数字]月分）
+    const match = normalized.match(/R(\d+)\s+(\d+)月分/);
+    if (match) {
+      return `R${match[1]} ${match[2]}月分`;
+    }
+    
+    // マッチしない場合は元の値を返す（エラーを起こさない）
+    return rawDate;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setNewBillData(prev => ({ ...prev, [name]: value }));
+    
+    // 料金年月分の場合は自動正規化
+    if (name === 'billingDate') {
+      const normalized = normalizeBillingDate(value);
+      setNewBillData(prev => ({ ...prev, [name]: normalized }));
+    } else {
+      setNewBillData(prev => ({ ...prev, [name]: value }));
+    }
   };
   
   const handleImageUpload = (event) => {
@@ -214,11 +265,26 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     const responseSchema = {
         type: "OBJECT",
         properties: {
-            "usageKwh": { "type": "NUMBER", "description": "使用電力量 (kWh)。小数点以下も含む。" },
-            "totalCost": { "type": "NUMBER", "description": "合計請求金額 (円)。" },
-            "periodDays": { "type": "NUMBER", "description": "検針期間の日数。" },
-            "billingDate": { "type": "STRING", "description": "料金年月分。券面に記載されている通りのテキスト形式 (例: 'R7 6月分')。日付が不明な場合は空文字列にすること。" },
-            "contractName": { "type": "STRING", "description": "電気の契約種別またはプラン名。例: 低圧電力α, 灯季時別, 従量電灯B。" } 
+            "usageKwh": { 
+                "type": "NUMBER", 
+                "description": "使用電力量 (kWh)。小数点以下も含む。必ず数値として出力。" 
+            },
+            "totalCost": { 
+                "type": "NUMBER", 
+                "description": "合計請求金額 (円)。必ず数値として出力。カンマは除去すること。" 
+            },
+            "periodDays": { 
+                "type": "NUMBER", 
+                "description": "検針期間の日数。必ず数値として出力。" 
+            },
+            "billingDate": { 
+                "type": "STRING", 
+                "description": "料金年月分を必ず「R[数字][半角スペース][数字]月分」の厳密な形式で出力すること。例: 'R7 6月分'。券面が「令和7年6月分」なら「R7 6月分」に変換。券面が「R76月分」（スペースなし）なら「R7 6月分」に修正。スペースは必ず半角1つ。数字も必ず半角。この形式以外では出力しないこと。日付が完全に不明な場合のみ空文字列。" 
+            },
+            "contractName": { 
+                "type": "STRING", 
+                "description": "電気の契約種別またはプラン名を正確に抽出すること。例: 低圧電力α, 灯季時別, 従量電灯B。表記ゆれに注意し統一すること（例:「低圧電力α」と「低圧電力a」は同じものとして「低圧電力α」で統一）。ギリシャ文字のαは必ずαで出力。" 
+            }
         },
         propertyOrdering: ["usageKwh", "totalCost", "periodDays", "billingDate", "contractName"]
     };
@@ -251,10 +317,10 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
             usageKwh: parsedJson.usageKwh !== undefined ? String(parsedJson.usageKwh) : '',
             totalCost: parsedJson.totalCost !== undefined ? String(parsedJson.totalCost) : '',
             periodDays: parsedJson.periodDays !== undefined ? String(parsedJson.periodDays) : '',
-            billingDate: parsedJson.billingDate || '',
+            billingDate: normalizeBillingDate(parsedJson.billingDate || ''),
             contractType: parsedJson.contractName || prev.contractType, 
         }));
-        setMessage('✅ OCR解析が完了し、フォームにデータが自動入力されました。');
+        setMessage('✅ OCR解析が完了し、フォームにデータが自動入力されました。料金年月分は自動的に「R7 6月分」形式に統一されています。');
     } catch (error) {
         console.error('OCR API Error:', error);
         setMessage(`OCR解析エラー: ${error.message}。手動でデータを入力してください。`);
@@ -496,42 +562,254 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
           <h2 className="text-lg md:text-2xl font-bold text-indigo-800 mb-3 md:mb-5 border-b pb-2">📸 OCR機能: 検針票の画像をアップロード</h2>
           <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isProcessing} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 mb-4" />
           {uploadedImageBase64 && (
-            <div className="flex flex-col md:flex-row gap-4 mb-4 items-start">
-              <div className="md:w-1/3 w-full border border-gray-300 rounded-lg p-2 bg-gray-50">
-                <img src={uploadedImageBase64} alt="Uploaded Bill" className="w-full max-w-xs max-h-64 object-contain h-auto rounded-lg shadow-md" />
-              </div>
-              <div className="md:w-2/3 w-full space-y-3">
-                <button onClick={handleOCRProcess} disabled={isProcessing} className="w-full px-6 py-3 border border-transparent rounded-lg shadow-lg text-white font-semibold bg-green-400 hover:bg-green-500 disabled:opacity-50 flex items-center justify-center">
-                  {isProcessing ? 'AI解析中...' : 'OCR解析を実行する'}
-                </button>
-                {ocrResultJson && (
-                    <div className="p-3 bg-gray-100 border border-gray-300 rounded-lg text-sm">
-                        <pre className="whitespace-pre-wrap break-words text-xs text-gray-600 bg-gray-200 p-2 rounded">{JSON.stringify(ocrResultJson, null, 2)}</pre>
+            <div className="space-y-6">
+              {/* OCR解析ボタン（最上部に配置） */}
+              <button 
+                onClick={handleOCRProcess} 
+                disabled={isProcessing} 
+                className="w-full px-6 py-4 text-xl md:text-2xl border border-transparent rounded-xl shadow-2xl text-white font-bold bg-green-500 hover:bg-green-600 disabled:opacity-50 flex items-center justify-center transition-all"
+              >
+                {isProcessing ? '🔄 AI解析中...' : '✨ OCR解析を実行する'}
+              </button>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* 左側：アップロードした画像 */}
+                <div className="border-4 border-blue-400 rounded-xl p-4 bg-blue-50">
+                  <h3 className="text-xl md:text-2xl font-bold mb-3 text-blue-800 flex items-center">
+                    📷 撮影した検針票
+                  </h3>
+                  <div className="relative">
+                    <img 
+                      src={uploadedImageBase64} 
+                      alt="検針票" 
+                      className="w-full max-w-2xl cursor-pointer border-2 border-gray-300 rounded-lg shadow-lg hover:shadow-2xl transition-shadow" 
+                      onClick={() => setIsImageZoomed(true)}
+                      style={{ maxHeight: '500px', objectFit: 'contain' }}
+                    />
+                    <p className="text-center mt-3 text-blue-700 font-bold text-lg">
+                      👆 クリックで拡大表示
+                    </p>
+                  </div>
+                </div>
+
+                {/* 右側：OCR読み取り結果（超大きい文字） */}
+                <div className="border-4 border-green-400 rounded-xl p-4 bg-green-50">
+                  <h3 className="text-xl md:text-2xl font-bold mb-3 text-green-800 flex items-center">
+                    ✅ 読み取り結果
+                  </h3>
+                  
+                  {ocrResultJson ? (
+                    <div className="space-y-4">
+                      {/* 料金年月分 */}
+                      <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
+                        <p className="text-sm text-gray-600 font-medium mb-1">📅 料金年月分</p>
+                        <p className="text-3xl md:text-4xl font-bold text-blue-600">
+                          {ocrResultJson.billingDate || '未入力'}
+                        </p>
+                      </div>
+
+                      {/* 契約種別 */}
+                      <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
+                        <p className="text-sm text-gray-600 font-medium mb-1">📋 契約種別</p>
+                        <p className="text-2xl md:text-3xl font-bold text-indigo-600">
+                          {ocrResultJson.contractName || '未入力'}
+                        </p>
+                      </div>
+
+                      {/* 使用量 */}
+                      <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
+                        <p className="text-sm text-gray-600 font-medium mb-1">⚡ 使用量</p>
+                        <p className="text-3xl md:text-4xl font-bold text-green-600">
+                          {ocrResultJson.usageKwh} <span className="text-2xl">kWh</span>
+                        </p>
+                      </div>
+
+                      {/* 料金 */}
+                      <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
+                        <p className="text-sm text-gray-600 font-medium mb-1">💰 合計料金</p>
+                        <p className="text-4xl md:text-5xl font-bold text-red-600">
+                          {ocrResultJson.totalCost?.toLocaleString()} <span className="text-2xl">円</span>
+                        </p>
+                      </div>
+
+                      {/* 日数 */}
+                      <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
+                        <p className="text-sm text-gray-600 font-medium mb-1">📆 検針期間</p>
+                        <p className="text-3xl md:text-4xl font-bold text-purple-600">
+                          {ocrResultJson.periodDays} <span className="text-2xl">日</span>
+                        </p>
+                      </div>
+
+                      <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mt-4">
+                        <p className="text-lg md:text-xl font-bold text-yellow-800 text-center">
+                          👆 この内容で間違いありませんか？
+                        </p>
+                        <p className="text-base text-gray-700 text-center mt-2">
+                          間違いがあれば、下のフォームで修正できます
+                        </p>
+                      </div>
                     </div>
-                )}
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-gray-400">
+                      <div className="text-center">
+                        <p className="text-2xl mb-2">📸</p>
+                        <p className="text-lg">OCR解析を実行してください</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* デバッグ用の生JSON表示（小さく表示） */}
+              {ocrResultJson && (
+                <details className="bg-gray-100 border border-gray-300 rounded-lg p-3">
+                  <summary className="cursor-pointer text-sm text-gray-600 font-medium">
+                    🔍 詳細データ（開発者向け）
+                  </summary>
+                  <pre className="whitespace-pre-wrap break-words text-xs text-gray-600 bg-white p-2 rounded mt-2">
+                    {JSON.stringify(ocrResultJson, null, 2)}
+                  </pre>
+                </details>
+              )}
             </div>
           )}
         </section>
-        <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl mb-6 md:mb-10 border border-gray-200">
-          <h2 className="text-lg md:text-2xl font-bold text-gray-800 mb-3 md:mb-5 border-b pb-2">📝 検針票データの登録・編集</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">記録者名</label>
-                <input type="text" name="recorderName" value={newBillData.recorderName} onChange={handleChange} readOnly={!isAdmin} className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border text-base md:text-lg font-semibold ${!isAdmin ? 'bg-gray-100' : ''}`} />
+        <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl mb-6 md:mb-10 border-4 border-yellow-300">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-5 border-b-4 pb-3 flex items-center">
+            📝 検針票データの登録・編集
+            <span className="ml-4 text-lg text-yellow-600">(OCR結果を確認・修正できます)</span>
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* 1カラムレイアウトに変更（ずれを防ぐ） */}
+            <div className="space-y-6">
+              {/* 記録者名 */}
+              <div>
+                <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
+                  👤 記録者名
+                </label>
+                <input 
+                  type="text" 
+                  name="recorderName" 
+                  value={newBillData.recorderName} 
+                  onChange={handleChange} 
+                  readOnly={!isAdmin} 
+                  className={`block w-full rounded-xl border-4 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 ${!isAdmin ? 'bg-gray-100' : 'border-gray-300'}`}
+                  style={{ fontSize: '28px' }}
+                />
               </div>
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">契約種別 (必須) <span className="text-red-500">*</span></label>
-                <input type="text" name="contractType" value={newBillData.contractType} onChange={handleChange} placeholder="例: 低圧電力α, 灯季時別" required className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg font-semibold" />
+
+              {/* 契約種別 */}
+              <div>
+                <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
+                  📋 契約種別 <span className="text-red-500 text-3xl">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  name="contractType" 
+                  value={newBillData.contractType} 
+                  onChange={handleChange} 
+                  placeholder="例: 低圧電力α" 
+                  required 
+                  className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
+                  style={{ fontSize: '28px' }}
+                />
               </div>
-              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">料金年月分</label><input type="text" name="billingDate" value={newBillData.billingDate} onChange={handleChange} placeholder="例: R7 6月分" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" /></div>
-              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">使用量 (kWh) <span className="text-red-500">*</span></label><input type="number" name="usageKwh" value={newBillData.usageKwh} onChange={handleChange} placeholder="例: 350.5" required step="0.01" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" /></div>
-              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">合計料金 (円) <span className="text-red-500">*</span></label><input type="number" name="totalCost" value={newBillData.totalCost} onChange={handleChange} placeholder="例: 12500" required step="1" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" /></div>
-              <div className="lg:col-span-1"><label className="block text-sm font-medium text-gray-700">日数 (日) <span className="text-red-500">*</span></label><input type="number" name="periodDays" value={newBillData.periodDays} onChange={handleChange} placeholder="例: 30" required step="1" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" /></div>
+
+              {/* 料金年月分 */}
+              <div>
+                <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
+                  📅 料金年月分
+                </label>
+                <input 
+                  type="text" 
+                  name="billingDate" 
+                  value={newBillData.billingDate} 
+                  onChange={handleChange} 
+                  placeholder="例: R7 6月分" 
+                  className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
+                  style={{ fontSize: '28px' }}
+                />
+              </div>
+
+              {/* 使用量 */}
+              <div>
+                <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
+                  ⚡ 使用量 (kWh) <span className="text-red-500 text-3xl">*</span>
+                </label>
+                <input 
+                  type="number" 
+                  name="usageKwh" 
+                  value={newBillData.usageKwh} 
+                  onChange={handleChange} 
+                  placeholder="例: 350.5" 
+                  required 
+                  step="0.01" 
+                  className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
+                  style={{ fontSize: '28px' }}
+                />
+              </div>
+
+              {/* 合計料金 */}
+              <div>
+                <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
+                  💰 合計料金 (円) <span className="text-red-500 text-3xl">*</span>
+                </label>
+                <input 
+                  type="number" 
+                  name="totalCost" 
+                  value={newBillData.totalCost} 
+                  onChange={handleChange} 
+                  placeholder="例: 12500" 
+                  required 
+                  step="1" 
+                  className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
+                  style={{ fontSize: '28px' }}
+                />
+              </div>
+
+              {/* 検針期間 */}
+              <div>
+                <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
+                  📆 検針期間 (日) <span className="text-red-500 text-3xl">*</span>
+                </label>
+                <input 
+                  type="number" 
+                  name="periodDays" 
+                  value={newBillData.periodDays} 
+                  onChange={handleChange} 
+                  placeholder="例: 30" 
+                  required 
+                  step="1" 
+                  className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
+                  style={{ fontSize: '28px' }}
+                />
+              </div>
             </div>
-            <div><label className="block text-sm font-medium text-gray-700">メモ/備考</label><textarea name="notes" value={newBillData.notes} onChange={handleChange} rows="2" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" placeholder="エアコン使用状況や季節変動など..."></textarea></div>
-            <button type="submit" disabled={!db || !userId} className="w-full md:w-auto px-6 py-3 border border-transparent rounded-lg shadow-lg text-white font-semibold bg-sky-400 hover:bg-sky-500 disabled:opacity-50">データを登録する</button>
+
+            {/* メモ欄 */}
+            <div>
+              <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
+                📝 メモ/備考
+              </label>
+              <textarea 
+                name="notes" 
+                value={newBillData.notes} 
+                onChange={handleChange} 
+                rows="3" 
+                className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-xl md:text-2xl focus:ring-4 focus:ring-blue-300 focus:border-blue-500" 
+                placeholder="エアコン使用状況や季節変動など..."
+                style={{ fontSize: '20px' }}
+              ></textarea>
+            </div>
+
+            {/* 保存ボタン（超大きい） */}
+            <button 
+              type="submit" 
+              disabled={!db || !userId} 
+              className="w-full px-8 py-6 border-4 border-transparent rounded-2xl shadow-2xl text-white font-bold bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-3xl md:text-4xl transition-all transform hover:scale-105"
+            >
+              ✅ この内容で保存する
+            </button>
           </form>
         </section>
         <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl">
@@ -592,6 +870,82 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
           </div>
         </section>
       </main>
+
+      {/* 画像拡大モーダル（老眼対応） */}
+      {isImageZoomed && uploadedImageBase64 && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center p-4"
+          onClick={() => setIsImageZoomed(false)}
+        >
+          <div className="relative w-full h-full flex flex-col items-center justify-center">
+            {/* 閉じるボタン（右上） */}
+            <button 
+              onClick={() => setIsImageZoomed(false)}
+              className="absolute top-4 right-4 bg-white hover:bg-gray-200 text-gray-800 font-bold py-3 px-6 rounded-full shadow-2xl text-2xl z-10 transition-all"
+            >
+              ✕ 閉じる
+            </button>
+
+            {/* ズーム操作ボタン（右下） */}
+            <div className="absolute bottom-4 right-4 flex flex-col space-y-3 z-10">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomLevel(prev => Math.min(prev + 0.25, 3));
+                }}
+                className="bg-white hover:bg-gray-200 text-gray-800 font-bold py-3 px-5 rounded-full shadow-2xl text-3xl transition-all"
+                title="拡大"
+              >
+                ➕
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomLevel(1);
+                }}
+                className="bg-white hover:bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full shadow-2xl text-lg transition-all"
+                title="リセット"
+              >
+                100%
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomLevel(prev => Math.max(prev - 0.25, 0.5));
+                }}
+                className="bg-white hover:bg-gray-200 text-gray-800 font-bold py-3 px-5 rounded-full shadow-2xl text-3xl transition-all"
+                title="縮小"
+              >
+                ➖
+              </button>
+            </div>
+
+            {/* 説明テキスト（下部中央） */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-6 py-3 rounded-full z-10">
+              <p className="text-lg md:text-xl font-bold text-center">
+                📱 スマホ：ピンチで拡大縮小 | 🖱️ PC：+/- ボタンで拡大縮小
+              </p>
+            </div>
+
+            {/* 画像本体 */}
+            <div 
+              className="overflow-auto max-w-full max-h-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img 
+                src={uploadedImageBase64} 
+                alt="検針票（拡大表示）" 
+                className="transition-transform duration-300"
+                style={{ 
+                  transform: `scale(${zoomLevel})`,
+                  maxWidth: 'none',
+                  cursor: 'grab'
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
