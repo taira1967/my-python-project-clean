@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OCR処理 - MyProject2</title>
+    <title>OCR処理 - シンプル版</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -142,27 +142,11 @@
             width: 0%;
             transition: width 0.3s ease;
         }
-        .project-info {
-            background-color: #e8f4f8;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .project-info h3 {
-            color: #2c3e50;
-            margin: 0 0 10px 0;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔍 検針票OCR処理 - MyProject2</h1>
-        
-        <div class="project-info">
-            <h3>🚀 改良版OCR機能</h3>
-            <p>検針票の画像から電気使用量データを自動抽出します。ドラッグ&ドロップにも対応しています。</p>
-        </div>
+        <h1>🔍 検針票OCR処理 - シンプル版</h1>
         
         <!-- フラッシュメッセージ -->
         {% with messages = get_flashed_messages() %}
@@ -183,7 +167,6 @@
                 <li>画像には「年月」「使用量（kWh）」「単価（円/kWh）」が含まれている必要があります</li>
                 <li>OCR処理後、自動的にデータがCSVファイルに追加されます</li>
                 <li>処理が完了すると、電気代一覧ページで確認できます</li>
-                <li>ドラッグ&ドロップでもファイルをアップロードできます</li>
             </ul>
         </div>
         
@@ -287,8 +270,6 @@
     </script>
 </body>
 </html>
-
-
 
 
 

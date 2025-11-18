@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>電気代比較ツール - MyProject2</title>
+    <title>電気代管理システム - シンプル版</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -97,27 +97,11 @@
             border-radius: 5px;
             border: 1px solid #f5c6cb;
         }
-        .project-info {
-            background-color: #e8f4f8;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .project-info h3 {
-            color: #2c3e50;
-            margin: 0 0 10px 0;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>⚡ 電気代管理システム - MyProject2</h1>
-        
-        <div class="project-info">
-            <h3>🚀 改良版アプリケーション</h3>
-            <p>シンプルで安定した電気代管理システムです。OCR機能で検針票から自動データ抽出が可能です。</p>
-        </div>
+        <h1>⚡ 電気代管理システム - シンプル版</h1>
         
         <!-- フラッシュメッセージ -->
         {% with messages = get_flashed_messages() %}
@@ -172,15 +156,10 @@
                 <p>OCR処理ページで検針票の画像をアップロードして、データを追加してください。</p>
                 <a href="/ocr" class="nav-buttons" style="display: inline-block; margin-top: 20px;">🔍 OCR処理を開始</a>
             </div>
-    {% endif %}
-</div>
-
-<footer>
-    <p>表示確認済み 2025年10月17日 by taira1967</p>
-</footer>
+        {% endif %}
+    </div>
 </body>
 </html>
-
 
 
 
