@@ -96,6 +96,6 @@ def graph():
 if __name__ == '__main__':
     app.run(debug=True, port=5003)
     if __name__ == "__main__":
-    app.run(debug=True)
+        app.run(debug=True)#
 
 # 表示確認済み！2025年10月17日 by taira1967
