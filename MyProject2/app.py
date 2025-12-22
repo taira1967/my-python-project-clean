@@ -63,7 +63,7 @@ def read_csv(filename):
                 continue
     return data
 
-# ルート定義
+# ルート定義 
 @app.route('/')
 def index():
     records = read_csv('data.csv')
@@ -91,11 +91,76 @@ def graph():
     plt.savefig(img, format='png', dpi=150, bbox_inches='tight')
     img.seek(0)
     plt.close()
-    return send_file(img, mimetype='image/png')
+def process_ocr_image(image_path):
+    """ジェミニ ＡＰＩを使用して画像から日本語データを抽出"""
+    try:
+        import google.generativeai as genai
+        
+        # ＡＰＩキーの設定（あなたのキーをここに記入してください）
+        genai.configure(api_key="AIzaSyAdNcdglxNM0QcaUBrom-OePAcjBqwwu6A")
+        
+        # ＡＩのモデルを選択
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # 画像を読み込む
+        with open(image_path, 'rb') as f:
+            image_data = f.read()
+            
+        # ＡＩへの日本語での指示
+        prompt = """
+        この画像は電気代の検針票です。
+        以下の３つの項目を日本語で探し、回答してください。
+        回答は必ず以下の形式（JSON）だけにしてください。
+        1. 年月（例：2025年1月）
+        2. 使用量
+        3. 単価
+        """
 
+        # ＡＩに解析させる
+        response = model.generate_content([
+            prompt,
+            {'mime_type': 'image/jpeg', 'data': image_data}
+        ])
+        
+        # 解析結果を整理する（ここでも日本語で処理します）
+        import json
+        text_result = response.text.strip().replace('', '').replace('```', '')
+        electric_data = json.loads(text_result)
+        
+        return "成功", electric_data
+
+    except Exception as e:
+        return None, f"エラーが発生しました: {str(e)}"
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    # 画像が送られてきたか確認
+    if 'file' not in request.files:
+        return redirect(url_for('index'))
+    file = request.files['file']
+    if file.filename == '':
+        return redirect(url_for('index'))
+    
+    # 保存する場所を作る
+    upload_folder = 'uploads'
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+    
+    # 画像を一時的に保存
+    file_path = os.path.join(upload_folder, file.filename)
+    file.save(file_path)
+    
+    # ＡＩ（ジェミニ）に解析を頼む
+    status, result = process_ocr_image(file_path)
+    
+    # 結果を画面に表示する
+    if status == "成功":
+        flash(f"解析に成功しました: {result}")
+    else:
+        flash(f"解析に失敗しました: {result}")
+        
+    return redirect(url_for('index'))
+
+# プログラムを起動する
 if __name__ == '__main__':
     app.run(debug=True, port=5003)
-    if __name__ == "__main__":
-        app.run(debug=True)#
-
-# 表示確認済み！2025年10月17日 by taira1967
