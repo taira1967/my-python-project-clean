@@ -1,0 +1,11 @@
+MyProject2/
+venv/
+node_modules/
+__pycache__/
+*.pyc
+templates/
+uploads/
+*.py
+requirements.txt
+README.md
+
