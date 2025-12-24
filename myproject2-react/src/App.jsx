@@ -302,7 +302,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
       setIsProcessing(false);
       return;
     }
-    
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     try {
         const response = await fetchWithExponentialBackoff(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
