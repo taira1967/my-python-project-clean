@@ -1,106 +1,347 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getFirestore, collection, query, onSnapshot, doc, addDoc, deleteDoc, orderBy, serverTimestamp, setLogLevel, where } from 'firebase/firestore';
 
-const App = () => {
-  const [message, setMessage] = useState('');
+// Firebaseのログレベルを設定 (デバッグ用)
+setLogLevel('debug');
+
+/**
+ * 環境変数を安全に取得する関数
+ */
+const getEnv = (key) => {
+  try {
+    return import.meta.env[key] || "";
+  } catch (e) {
+    console.warn("Environment variable access failed:", e);
+    return "";
+  }
+};
+
+// --- グローバル変数とユーティリティ関数の定義 ---
+const firebaseConfig = {
+  apiKey: getEnv('VITE_FIREBASE_API_KEY'), 
+  authDomain: "my-p1-bcbe8.firebaseapp.com",
+  projectId: "my-p1-bcbe8",
+  storageBucket: "my-p1-bcbe8.firebasestorage.app",
+  messagingSenderId: "21917026577",
+  appId: "1:21917026577:web:d9bf69c31ececa8a0a24b0",
+  measurementId: "G-98NCZQCEPM"
+};
+
+// --- UIコンポーネント ---
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center h-screen bg-gray-100">
+    <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600"></div>
+    <p className="ml-4 text-2xl text-indigo-700 font-semibold">準備中です...</p>
+  </div>
+);
+
+const LoginScreen = ({ onLogin, loginError }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onLogin(email, password);
+  };
 
   return (
-    <div className="container">
-      <header className="header">
-        <h1>💡 電気料金管理システム - React版</h1>
-        <p>ジェミニ2.5PROで作成された試作品をReactで実装</p>
-      </header>
-
-      <main>
-        <div className="form-section">
-          <h2>📸 OCR機能: 検針票の画像をアップロード</h2>
-          <p>電気の検針票の画像をアップロードし、OCR解析を実行することで、フォームに自動入力されます。</p>
-          
-          <div className="form-group">
-            <label>画像ファイルを選択:</label>
-            <input type="file" accept="image/*" />
+    <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 space-y-6">
+        <div className="text-center">
+            <h1 className="text-3xl font-bold text-indigo-600">💡 電気料金比較表</h1>
+            <p className="mt-2 text-gray-600">ログインしてください。</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">メールアドレス</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+            />
           </div>
-          
-          <button className="btn" onClick={() => setMessage('OCR機能はFirebaseとGemini APIの設定後に利用可能です')}>
-            OCR解析を実行する
+          <div>
+            <label className="block text-sm font-medium text-gray-700">パスワード</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+            />
+          </div>
+          {loginError && <p className="text-sm text-red-600 bg-red-100 p-3 rounded-lg">{loginError}</p>}
+          <button type="submit" className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-lg transition duration-300">
+            ログイン
           </button>
-        </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
-        <div className="form-section">
-          <h2>📝 検針票データの登録・編集</h2>
-          <form>
-            <div className="form-group">
-              <label>記録名 (必須):</label>
-              <input type="text" placeholder="例: 自宅_低圧電力α, オフィス_灯季時別" />
-            </div>
-            
-            <div className="form-group">
-              <label>料金月分:</label>
-              <input type="text" placeholder="例: R7 6月分" />
-            </div>
-            
-            <div className="form-group">
-              <label>使用量 (kWh):</label>
-              <input type="number" placeholder="例: 350.5" step="0.01" />
-            </div>
-            
-            <div className="form-group">
-              <label>合計料金 (円):</label>
-              <input type="number" placeholder="例: 12500" step="1" />
-            </div>
-            
-            <div className="form-group">
-              <label>日数 (日):</label>
-              <input type="number" placeholder="例: 30" step="1" />
-            </div>
-            
-            <div className="form-group">
-              <label>メモ/備考:</label>
-              <textarea placeholder="エアコン使用状況や季節変動など..." rows="3"></textarea>
-            </div>
-            
-            <button className="btn" onClick={() => setMessage('データ登録機能はFirebase設定後に利用可能です')}>
-              データを登録する
-            </button>
-          </form>
-        </div>
+// --- メインアプリケーションコンポーネント ---
+const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
+  const [bills, setBills] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadedImageBase64, setUploadedImageBase64] = useState(null);
+  const [message, setMessage] = useState('');
+  
+  const [newBillData, setNewBillData] = useState({
+    recorderName: currentUser,
+    contractType: '',
+    billingDate: '',
+    usageKwh: '',
+    totalCost: '',
+    periodDays: '',
+    notes: '',
+  });
 
-        <div className="form-section">
-          <h2>📋 登録履歴</h2>
-          <p>データはFirebase設定後に表示されます。</p>
-          
-          <div className="form-group">
-            <label>契約種別フィルタ:</label>
-            <select>
-              <option>全ての記録 (パターン0)</option>
-              <option>低圧電力α (パターン1)</option>
-              <option>灯季時別 (パターン2)</option>
-              <option>低圧電力α / 灯季時別 合算 (パターン3)</option>
-            </select>
-          </div>
-        </div>
+  useEffect(() => {
+    setNewBillData(prev => ({ ...prev, recorderName: currentUser }));
+  }, [currentUser]);
 
+  const fetchWithExponentialBackoff = async (url, options, maxRetries = 5) => {
+      for (let i = 0; i < maxRetries; i++) {
+          try {
+              const response = await fetch(url, options);
+              if (response.status !== 429 && response.status < 500) { return response; }
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000 + Math.random() * 1000));
+          } catch (error) {
+              if (i === maxRetries - 1) throw error;
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000 + Math.random() * 1000));
+          }
+      }
+  };
+
+  useEffect(() => {
+    if (!db || !userId || !appId) return;
+    const collectionPath = `artifacts/${appId}/energy_bills`;
+    const billsCollection = collection(db, collectionPath);
+    let billsQuery;
+    if (isAdmin) {
+      billsQuery = query(billsCollection, orderBy('timestamp', 'desc'));
+    } else {
+      billsQuery = query(billsCollection, where('authorId', '==', userId), orderBy('timestamp', 'desc'));
+    }
+    const unsubscribe = onSnapshot(billsQuery, (snapshot) => {
+      const fetchedBills = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        usageKwh: Number(doc.data().usageKwh),
+        totalCost: Number(doc.data().totalCost),
+        periodDays: Number(doc.data().periodDays),
+      }));
+      setBills(fetchedBills);
+    }, (error) => {
+      setMessage(`データ取得エラー: ${error.message}`);
+    });
+    return () => unsubscribe();
+  }, [db, userId, appId, isAdmin]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setNewBillData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file || !file.type.startsWith('image/')) {
+        setMessage('画像ファイルをアップロードしてください。');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => setUploadedImageBase64(e.target.result);
+    reader.readAsDataURL(file);
+  };
+  
+  const handleOCRProcess = async () => {
+    const apiKey = getEnv('VITE_GEMINI_API_KEY');
+    if (!apiKey) {
+      setMessage('Gemini APIキーが設定されていません。');
+      return;
+    }
+    setIsProcessing(true);
+    const mimeType = uploadedImageBase64.substring(5, uploadedImageBase64.indexOf(';'));
+    const base64Data = uploadedImageBase64.split(',')[1];
+    const payload = {
+        contents: [{ role: "user", parts: [{ text: "電気の検針票から情報を抽出してください。" }, { inlineData: { mimeType, data: base64Data } }] }],
+        generationConfig: { responseMimeType: "application/json" }
+    };
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    try {
+        const response = await fetchWithExponentialBackoff(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await response.json();
+        const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const parsedJson = JSON.parse(jsonText);
+        setNewBillData(prev => ({
+            ...prev,
+            usageKwh: String(parsedJson.usageKwh || ''),
+            totalCost: String(parsedJson.totalCost || ''),
+            periodDays: String(parsedJson.periodDays || ''),
+            billingDate: parsedJson.billingDate || '',
+            contractType: parsedJson.contractName || prev.contractType,
+        }));
+        setMessage('✅ OCR解析が完了しました。');
+    } catch (error) {
+        setMessage(`OCR解析エラー: ${error.message}`);
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const collectionPath = `artifacts/${appId}/energy_bills`;
+    const dataToSave = {
+      ...newBillData,
+      usageKwh: Number(newBillData.usageKwh),
+      totalCost: Number(newBillData.totalCost),
+      periodDays: Number(newBillData.periodDays),
+      timestamp: serverTimestamp(),
+      authorId: userId,
+    };
+    try {
+      await addDoc(collection(db, collectionPath), dataToSave);
+      setMessage(`登録が完了しました！`);
+      setNewBillData({ recorderName: currentUser, contractType: '', billingDate: '', usageKwh: '', totalCost: '', periodDays: '', notes: '' });
+      setUploadedImageBase64(null);
+    } catch (error) {
+      setMessage(`登録エラー: ${error.message}`);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      <header className="bg-indigo-600 text-white p-5 flex justify-between items-center shadow-lg">
+        <h1 className="text-2xl font-bold">💡 電気料金比較表</h1>
+        <button onClick={onLogout} className="bg-red-500 hover:bg-red-600 transition px-4 py-2 rounded-lg font-bold">ログアウト</button>
+      </header>
+      <main className="container mx-auto p-4 flex-grow max-w-4xl">
         {message && (
-          <div className={`message ${message.includes('エラー') ? 'error' : 'success'}`}>
+          <div className="p-4 mb-6 bg-indigo-100 border-l-4 border-indigo-500 text-indigo-700 rounded-r-lg shadow-sm">
             {message}
           </div>
         )}
-      </main>
+        
+        <div className="grid grid-cols-1 gap-6">
+          <section className="bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+            <h2 className="text-xl font-bold mb-4 flex items-center">
+              <span className="mr-2">📸</span> 検針票AI解析 (OCR)
+            </h2>
+            <div className="flex flex-col space-y-4">
+              <input type="file" accept="image/*" onChange={handleImageUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" />
+              {uploadedImageBase64 && (
+                <div className="mt-4">
+                  <img src={uploadedImageBase64} alt="Upload Preview" className="max-h-48 rounded-lg mb-4 border shadow-sm" />
+                  <button onClick={handleOCRProcess} disabled={isProcessing} className={`w-full py-3 rounded-lg font-bold text-white shadow-lg transition duration-300 ${isProcessing ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>
+                    {isProcessing ? 'AI解析中...' : 'AIで情報を自動入力する'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
 
-      <footer style={{backgroundColor: '#374151', color: 'white', padding: '20px', textAlign: 'center', marginTop: 'auto'}}>
-        <div className="container">
-          <p style={{margin: 0}}>
-            <strong style={{color: '#fbbf24'}}>✅ App ID:</strong> Firebase設定後に表示
-          </p>
-          <p style={{margin: '4px 0 0 0'}}>
-            <strong style={{color: '#fbbf24'}}>👤 User ID:</strong> Firebase設定後に表示
-          </p>
-          <p style={{fontSize: '0.75rem', margin: '8px 0 0 0', opacity: 0.7}}>
-            データはFirebase Firestoreに保存されます
-          </p>
+          <section className="bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+            <h2 className="text-xl font-bold mb-4 flex items-center">
+              <span className="mr-2">📝</span> データ入力・確認
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">契約種別</label>
+                  <input type="text" name="contractType" value={newBillData.contractType} onChange={handleChange} placeholder="例: 従量電灯B" className="w-full p-3 border border-gray-300 rounded-lg" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">使用量 (kWh)</label>
+                  <input type="number" name="usageKwh" value={newBillData.usageKwh} onChange={handleChange} placeholder="例: 250" className="w-full p-3 border border-gray-300 rounded-lg" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">請求金額 (円)</label>
+                  <input type="number" name="totalCost" value={newBillData.totalCost} onChange={handleChange} placeholder="例: 8500" className="w-full p-3 border border-gray-300 rounded-lg" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">対象日数 (日)</label>
+                  <input type="number" name="periodDays" value={newBillData.periodDays} onChange={handleChange} placeholder="例: 30" className="w-full p-3 border border-gray-300 rounded-lg" required />
+                </div>
+              </div>
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-xl">
+                データベースに登録する
+              </button>
+            </form>
+          </section>
         </div>
+      </main>
+      <footer className="bg-gray-800 text-white p-6 text-center text-sm">
+        <p>© 2025 kazumasa taira. All rights reserved.</p>
       </footer>
     </div>
   );
 };
 
-export default App
+// --- ルートコンポーネント ---
+const App = () => {
+  const [db, setDb] = useState(null);
+  const [auth, setAuth] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [appId, setAppId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loginError, setLoginError] = useState('');
+
+  useEffect(() => {
+    const initFirebase = async () => {
+      try {
+        const app = initializeApp(firebaseConfig);
+        const firestore = getFirestore(app);
+        const authentication = getAuth(app);
+        setDb(firestore);
+        setAuth(authentication);
+        setAppId(typeof __app_id !== 'undefined' ? __app_id : 'default-app-id');
+        
+        onAuthStateChanged(authentication, async (user) => {
+          if (user) {
+            const idTokenResult = await user.getIdTokenResult();
+            setIsAdmin(idTokenResult.claims.admin === true);
+            setCurrentUser(user.email);
+            setUserId(user.uid);
+            setIsLoggedIn(true);
+          } else {
+            setIsLoggedIn(false);
+          }
+          setLoading(false);
+        });
+      } catch (e) {
+        setLoginError(`初期化エラー: ${e.message}`);
+        setLoading(false);
+      }
+    };
+    initFirebase();
+  }, []);
+  
+  const handleLogin = async (email, password) => {
+    try {
+        setLoading(true);
+        await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+        setLoginError('ログインに失敗しました。');
+        setLoading(false);
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  return isLoggedIn ? (
+    <MainApp currentUser={currentUser} isAdmin={isAdmin} onLogout={() => signOut(auth)} db={db} userId={userId} appId={appId} />
+  ) : (
+    <LoginScreen onLogin={handleLogin} loginError={loginError} />
+  );
+};
+
+export default App;
