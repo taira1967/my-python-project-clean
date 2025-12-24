@@ -18,7 +18,7 @@ const getEnv = (key) => {
   }
 };
 
-// --- グローバル変数とユーティリティ関数の定義 ---
+// --- Firebase構成 ---
 const firebaseConfig = {
   apiKey: getEnv('VITE_FIREBASE_API_KEY'), 
   authDomain: "my-p1-bcbe8.firebaseapp.com",
@@ -29,7 +29,7 @@ const firebaseConfig = {
   measurementId: "G-98NCZQCEPM"
 };
 
-// --- UIコンポーネント ---
+// --- UIコンポーネント: 読み込み中 ---
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-screen bg-gray-100">
     <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600"></div>
@@ -37,6 +37,7 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// --- UIコンポーネント: ログイン画面 ---
 const LoginScreen = ({ onLogin, loginError }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -105,10 +106,12 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     setNewBillData(prev => ({ ...prev, recorderName: currentUser }));
   }, [currentUser]);
 
+  // 指数バックオフによるリトライ機能
   const fetchWithExponentialBackoff = async (url, options, maxRetries = 5) => {
       for (let i = 0; i < maxRetries; i++) {
           try {
               const response = await fetch(url, options);
+              if (response.status === 200) return response;
               if (response.status !== 429 && response.status < 500) { return response; }
               await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000 + Math.random() * 1000));
           } catch (error) {
@@ -118,6 +121,7 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
       }
   };
 
+  // リアルタイムデータ取得
   useEffect(() => {
     if (!db || !userId || !appId) return;
     const collectionPath = `artifacts/${appId}/energy_bills`;
@@ -159,36 +163,63 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     reader.readAsDataURL(file);
   };
   
+  // OCR処理 (Gemini 1.5 Flash使用)
   const handleOCRProcess = async () => {
     const apiKey = getEnv('VITE_GEMINI_API_KEY');
     if (!apiKey) {
-      setMessage('Gemini APIキーが設定されていません。');
+      setMessage('エラー: APIキーが読み込めていません。Vercelの設定を確認してください。');
       return;
     }
     setIsProcessing(true);
+    setMessage('AI解析を開始します...');
+
     const mimeType = uploadedImageBase64.substring(5, uploadedImageBase64.indexOf(';'));
     const base64Data = uploadedImageBase64.split(',')[1];
+    
+    // 安定版の1.5-flashを使用
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
     const payload = {
-        contents: [{ role: "user", parts: [{ text: "電気の検針票から情報を抽出してください。" }, { inlineData: { mimeType, data: base64Data } }] }],
-        generationConfig: { responseMimeType: "application/json" }
+        contents: [{ 
+          role: "user", 
+          parts: [
+            { text: "この電気検針票から、使用量(usageKwh:数値のみ)、請求金額(totalCost:数値のみ)、日数(periodDays:数値のみ)、契約名(contractName:文字列)を抽出し、JSON形式で出力してください。" }, 
+            { inlineData: { mimeType, data: base64Data } }
+          ] 
+        }],
+        generationConfig: { 
+          responseMimeType: "application/json" 
+        }
     };
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
     try {
-        const response = await fetchWithExponentialBackoff(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const response = await fetchWithExponentialBackoff(apiUrl, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify(payload) 
+        });
+
+        if (!response.ok) {
+          throw new Error(`APIレスポンスエラー: ${response.status}`);
+        }
+
         const result = await response.json();
         const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!jsonText) throw new Error('AIからの応答が空でした。');
+
         const parsedJson = JSON.parse(jsonText);
         setNewBillData(prev => ({
             ...prev,
             usageKwh: String(parsedJson.usageKwh || ''),
             totalCost: String(parsedJson.totalCost || ''),
             periodDays: String(parsedJson.periodDays || ''),
-            billingDate: parsedJson.billingDate || '',
             contractType: parsedJson.contractName || prev.contractType,
         }));
-        setMessage('✅ OCR解析が完了しました。');
+        setMessage('✅ OCR解析が完了しました。内容を確認して登録してください。');
     } catch (error) {
-        setMessage(`OCR解析エラー: ${error.message}`);
+        console.error(error);
+        setMessage(`OCR解析エラー: ${error.message}。手動で入力してください。`);
     } finally {
         setIsProcessing(false);
     }
@@ -219,26 +250,27 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <header className="bg-indigo-600 text-white p-5 flex justify-between items-center shadow-lg">
         <h1 className="text-2xl font-bold">💡 電気料金比較表</h1>
-        <button onClick={onLogout} className="bg-red-500 hover:bg-red-600 transition px-4 py-2 rounded-lg font-bold">ログアウト</button>
+        <button onClick={onLogout} className="bg-red-500 hover:bg-red-600 transition px-4 py-2 rounded-lg font-bold shadow">ログアウト</button>
       </header>
       <main className="container mx-auto p-4 flex-grow max-w-4xl">
         {message && (
-          <div className="p-4 mb-6 bg-indigo-100 border-l-4 border-indigo-500 text-indigo-700 rounded-r-lg shadow-sm">
+          <div className="p-4 mb-6 bg-white border-l-4 border-indigo-500 text-indigo-700 rounded shadow-md animate-fade-in">
             {message}
           </div>
         )}
         
         <div className="grid grid-cols-1 gap-6">
-          <section className="bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+          <section className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
             <h2 className="text-xl font-bold mb-4 flex items-center">
-              <span className="mr-2">📸</span> 検針票AI解析 (OCR)
+              <span className="mr-2 text-2xl">📸</span> 検針票AI解析 (OCR)
             </h2>
             <div className="flex flex-col space-y-4">
               <input type="file" accept="image/*" onChange={handleImageUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" />
               {uploadedImageBase64 && (
-                <div className="mt-4">
-                  <img src={uploadedImageBase64} alt="Upload Preview" className="max-h-48 rounded-lg mb-4 border shadow-sm" />
-                  <button onClick={handleOCRProcess} disabled={isProcessing} className={`w-full py-3 rounded-lg font-bold text-white shadow-lg transition duration-300 ${isProcessing ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>
+                <div className="mt-4 border-t pt-4">
+                  <p className="text-sm text-gray-500 mb-2">プレビュー:</p>
+                  <img src={uploadedImageBase64} alt="Upload Preview" className="max-h-64 rounded-lg mb-4 border shadow-sm mx-auto" />
+                  <button onClick={handleOCRProcess} disabled={isProcessing} className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition duration-300 ${isProcessing ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>
                     {isProcessing ? 'AI解析中...' : 'AIで情報を自動入力する'}
                   </button>
                 </div>
@@ -246,30 +278,30 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
             </div>
           </section>
 
-          <section className="bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+          <section className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
             <h2 className="text-xl font-bold mb-4 flex items-center">
-              <span className="mr-2">📝</span> データ入力・確認
+              <span className="mr-2 text-2xl">📝</span> データ入力・確認
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">契約種別</label>
-                  <input type="text" name="contractType" value={newBillData.contractType} onChange={handleChange} placeholder="例: 従量電灯B" className="w-full p-3 border border-gray-300 rounded-lg" required />
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">契約種別</label>
+                  <input type="text" name="contractType" value={newBillData.contractType} onChange={handleChange} placeholder="例: 従量電灯B" className="w-full p-4 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">使用量 (kWh)</label>
-                  <input type="number" name="usageKwh" value={newBillData.usageKwh} onChange={handleChange} placeholder="例: 250" className="w-full p-3 border border-gray-300 rounded-lg" required />
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">使用量 (kWh)</label>
+                  <input type="number" name="usageKwh" value={newBillData.usageKwh} onChange={handleChange} placeholder="例: 250" className="w-full p-4 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">請求金額 (円)</label>
-                  <input type="number" name="totalCost" value={newBillData.totalCost} onChange={handleChange} placeholder="例: 8500" className="w-full p-3 border border-gray-300 rounded-lg" required />
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">請求金額 (円)</label>
+                  <input type="number" name="totalCost" value={newBillData.totalCost} onChange={handleChange} placeholder="例: 8500" className="w-full p-4 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">対象日数 (日)</label>
-                  <input type="number" name="periodDays" value={newBillData.periodDays} onChange={handleChange} placeholder="例: 30" className="w-full p-3 border border-gray-300 rounded-lg" required />
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">対象日数 (日)</label>
+                  <input type="number" name="periodDays" value={newBillData.periodDays} onChange={handleChange} placeholder="例: 30" className="w-full p-4 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition" required />
                 </div>
               </div>
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-xl">
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-xl transition-all transform hover:-translate-y-1">
                 データベースに登録する
               </button>
             </form>
@@ -277,13 +309,13 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
         </div>
       </main>
       <footer className="bg-gray-800 text-white p-6 text-center text-sm">
-        <p>© 2025 kazumasa taira. All rights reserved.</p>
+        <p>© 2025 kazumasa taira. すべてのデータをクラウドで管理。</p>
       </footer>
     </div>
   );
 };
 
-// --- ルートコンポーネント ---
+// --- アプリケーションエントリポイント ---
 const App = () => {
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
