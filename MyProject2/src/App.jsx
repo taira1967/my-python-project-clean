@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { getFirestore, collection, query, onSnapshot, doc, addDoc, deleteDoc, orderBy, serverTimestamp, setLogLevel, where } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getFirestore, collection, query, onSnapshot, addDoc, orderBy, serverTimestamp, setLogLevel, where } from 'firebase/firestore';
 
 // Firebaseのログレベルを設定 (デバッグ用)
 setLogLevel('debug');
@@ -106,7 +106,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     setNewBillData(prev => ({ ...prev, recorderName: currentUser }));
   }, [currentUser]);
 
-  // 指数バックオフによるリトライ機能
   const fetchWithExponentialBackoff = async (url, options, maxRetries = 5) => {
       for (let i = 0; i < maxRetries; i++) {
           try {
@@ -121,17 +120,18 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
       }
   };
 
-  // リアルタイムデータ取得
   useEffect(() => {
     if (!db || !userId || !appId) return;
     const collectionPath = `artifacts/${appId}/energy_bills`;
     const billsCollection = collection(db, collectionPath);
     let billsQuery;
+    
     if (isAdmin) {
       billsQuery = query(billsCollection, orderBy('timestamp', 'desc'));
     } else {
-      billsQuery = query(billsCollection, where('authorId', '==', userId), orderBy('timestamp', 'desc'));
+      billsQuery = query(billsCollection, where('authorId', '==', userId));
     }
+
     const unsubscribe = onSnapshot(billsQuery, (snapshot) => {
       const fetchedBills = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -163,27 +163,27 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     reader.readAsDataURL(file);
   };
   
-  // OCR処理 (Gemini 1.5 Flash使用)
+  // OCR処理
   const handleOCRProcess = async () => {
     const apiKey = getEnv('VITE_GEMINI_API_KEY');
     if (!apiKey) {
-      setMessage('エラー: APIキーが読み込めていません。Vercelの設定を確認してください。');
+      setMessage('エラー: Vercelの設定画面で VITE_GEMINI_API_KEY を登録してください。');
       return;
     }
     setIsProcessing(true);
-    setMessage('AI解析を開始します...');
+    setMessage('AI解析中...');
 
     const mimeType = uploadedImageBase64.substring(5, uploadedImageBase64.indexOf(';'));
     const base64Data = uploadedImageBase64.split(',')[1];
     
-    // 安定版の1.5-flashを使用
+    // 確実に動作する 1.5-flash モデルを指定
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const payload = {
         contents: [{ 
           role: "user", 
           parts: [
-            { text: "この電気検針票から、使用量(usageKwh:数値のみ)、請求金額(totalCost:数値のみ)、日数(periodDays:数値のみ)、契約名(contractName:文字列)を抽出し、JSON形式で出力してください。" }, 
+            { text: "この電気検針票から情報を抽出し、JSON形式で出力してください。項目: usageKwh(数値), totalCost(数値), periodDays(数値), contractName(文字列)" }, 
             { inlineData: { mimeType, data: base64Data } }
           ] 
         }],
@@ -200,13 +200,14 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
         });
 
         if (!response.ok) {
-          throw new Error(`APIレスポンスエラー: ${response.status}`);
+          const errData = await response.json();
+          throw new Error(errData.error?.message || `API Error ${response.status}`);
         }
 
         const result = await response.json();
         const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
         
-        if (!jsonText) throw new Error('AIからの応答が空でした。');
+        if (!jsonText) throw new Error('解析結果が得られませんでした。');
 
         const parsedJson = JSON.parse(jsonText);
         setNewBillData(prev => ({
@@ -216,10 +217,10 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
             periodDays: String(parsedJson.periodDays || ''),
             contractType: parsedJson.contractName || prev.contractType,
         }));
-        setMessage('✅ OCR解析が完了しました。内容を確認して登録してください。');
+        setMessage('✅ 解析完了。内容を確認して登録してください。');
     } catch (error) {
         console.error(error);
-        setMessage(`OCR解析エラー: ${error.message}。手動で入力してください。`);
+        setMessage(`OCRエラー: ${error.message}。手動で入力してください。`);
     } finally {
         setIsProcessing(false);
     }
@@ -238,84 +239,54 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     };
     try {
       await addDoc(collection(db, collectionPath), dataToSave);
-      setMessage(`登録が完了しました！`);
+      setMessage(`登録完了！`);
       setNewBillData({ recorderName: currentUser, contractType: '', billingDate: '', usageKwh: '', totalCost: '', periodDays: '', notes: '' });
       setUploadedImageBase64(null);
     } catch (error) {
-      setMessage(`登録エラー: ${error.message}`);
+      setMessage(`登録失敗: ${error.message}`);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-indigo-600 text-white p-5 flex justify-between items-center shadow-lg">
         <h1 className="text-2xl font-bold">💡 電気料金比較表</h1>
-        <button onClick={onLogout} className="bg-red-500 hover:bg-red-600 transition px-4 py-2 rounded-lg font-bold shadow">ログアウト</button>
+        <button onClick={onLogout} className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-bold">ログアウト</button>
       </header>
       <main className="container mx-auto p-4 flex-grow max-w-4xl">
-        {message && (
-          <div className="p-4 mb-6 bg-white border-l-4 border-indigo-500 text-indigo-700 rounded shadow-md animate-fade-in">
-            {message}
-          </div>
-        )}
-        
+        {message && <div className="p-4 mb-6 bg-white border-l-4 border-indigo-500 text-indigo-700 rounded shadow-md">{message}</div>}
         <div className="grid grid-cols-1 gap-6">
-          <section className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <span className="mr-2 text-2xl">📸</span> 検針票AI解析 (OCR)
-            </h2>
-            <div className="flex flex-col space-y-4">
-              <input type="file" accept="image/*" onChange={handleImageUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" />
-              {uploadedImageBase64 && (
-                <div className="mt-4 border-t pt-4">
-                  <p className="text-sm text-gray-500 mb-2">プレビュー:</p>
-                  <img src={uploadedImageBase64} alt="Upload Preview" className="max-h-64 rounded-lg mb-4 border shadow-sm mx-auto" />
-                  <button onClick={handleOCRProcess} disabled={isProcessing} className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition duration-300 ${isProcessing ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>
-                    {isProcessing ? 'AI解析中...' : 'AIで情報を自動入力する'}
-                  </button>
-                </div>
-              )}
-            </div>
+          <section className="bg-white p-6 rounded-2xl shadow-lg border">
+            <h2 className="text-xl font-bold mb-4">📸 AI解析 (OCR)</h2>
+            <input type="file" accept="image/*" onChange={handleImageUpload} className="mb-4 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+            {uploadedImageBase64 && (
+              <div className="text-center">
+                <img src={uploadedImageBase64} className="max-h-64 rounded-lg mb-4 mx-auto border" alt="preview" />
+                <button onClick={handleOCRProcess} disabled={isProcessing} className={`w-full py-4 rounded-xl font-bold text-white ${isProcessing ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>
+                  {isProcessing ? '解析中...' : 'AIで情報を自動入力'}
+                </button>
+              </div>
+            )}
           </section>
-
-          <section className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <span className="mr-2 text-2xl">📝</span> データ入力・確認
-            </h2>
+          <section className="bg-white p-6 rounded-2xl shadow-lg border">
+            <h2 className="text-xl font-bold mb-4">📝 データ入力</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">契約種別</label>
-                  <input type="text" name="contractType" value={newBillData.contractType} onChange={handleChange} placeholder="例: 従量電灯B" className="w-full p-4 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition" required />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">使用量 (kWh)</label>
-                  <input type="number" name="usageKwh" value={newBillData.usageKwh} onChange={handleChange} placeholder="例: 250" className="w-full p-4 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition" required />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">請求金額 (円)</label>
-                  <input type="number" name="totalCost" value={newBillData.totalCost} onChange={handleChange} placeholder="例: 8500" className="w-full p-4 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition" required />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">対象日数 (日)</label>
-                  <input type="number" name="periodDays" value={newBillData.periodDays} onChange={handleChange} placeholder="例: 30" className="w-full p-4 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition" required />
-                </div>
+                <input type="text" name="contractType" value={newBillData.contractType} onChange={handleChange} placeholder="契約種別" className="p-4 border rounded-xl" required />
+                <input type="number" name="usageKwh" value={newBillData.usageKwh} onChange={handleChange} placeholder="使用量 (kWh)" className="p-4 border rounded-xl" required />
+                <input type="number" name="totalCost" value={newBillData.totalCost} onChange={handleChange} placeholder="請求金額 (円)" className="p-4 border rounded-xl" required />
+                <input type="number" name="periodDays" value={newBillData.periodDays} onChange={handleChange} placeholder="対象日数" className="p-4 border rounded-xl" required />
               </div>
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-xl transition-all transform hover:-translate-y-1">
-                データベースに登録する
-              </button>
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold">登録する</button>
             </form>
           </section>
         </div>
       </main>
-      <footer className="bg-gray-800 text-white p-6 text-center text-sm">
-        <p>© 2025 kazumasa taira. すべてのデータをクラウドで管理。</p>
-      </footer>
     </div>
   );
 };
 
-// --- アプリケーションエントリポイント ---
+// --- アプリ初期化 ---
 const App = () => {
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
@@ -324,23 +295,19 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [loginError, setLoginError] = useState('');
 
   useEffect(() => {
-    const initFirebase = async () => {
+    const init = async () => {
       try {
-        const app = initializeApp(firebaseConfig);
+        const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
         const firestore = getFirestore(app);
         const authentication = getAuth(app);
         setDb(firestore);
         setAuth(authentication);
         setAppId(typeof __app_id !== 'undefined' ? __app_id : 'default-app-id');
-        
-        onAuthStateChanged(authentication, async (user) => {
+        onAuthStateChanged(authentication, (user) => {
           if (user) {
-            const idTokenResult = await user.getIdTokenResult();
-            setIsAdmin(idTokenResult.claims.admin === true);
             setCurrentUser(user.email);
             setUserId(user.uid);
             setIsLoggedIn(true);
@@ -350,30 +317,15 @@ const App = () => {
           setLoading(false);
         });
       } catch (e) {
-        setLoginError(`初期化エラー: ${e.message}`);
+        setLoginError(`初期化失敗: ${e.message}`);
         setLoading(false);
       }
     };
-    initFirebase();
+    init();
   }, []);
-  
-  const handleLogin = async (email, password) => {
-    try {
-        setLoading(true);
-        await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-        setLoginError('ログインに失敗しました。');
-        setLoading(false);
-    }
-  };
 
   if (loading) return <LoadingSpinner />;
-
-  return isLoggedIn ? (
-    <MainApp currentUser={currentUser} isAdmin={isAdmin} onLogout={() => signOut(auth)} db={db} userId={userId} appId={appId} />
-  ) : (
-    <LoginScreen onLogin={handleLogin} loginError={loginError} />
-  );
+  return isLoggedIn ? <MainApp currentUser={currentUser} onLogout={() => signOut(auth)} db={db} userId={userId} appId={appId} /> : <LoginScreen onLogin={(e, p) => signInWithEmailAndPassword(auth, e, p)} loginError={loginError} />;
 };
 
 export default App;
