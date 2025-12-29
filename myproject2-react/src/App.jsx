@@ -139,28 +139,10 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
   const [selectedFilterMode, setSelectedFilterMode] = useState('All_Records');
   const [adminRecorderFilter, setAdminRecorderFilter] = useState('all');
   const [message, setMessage] = useState('');
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-  
-<<<<<<< HEAD
-  // 画像拡大機能用のstate（老眼対応）
-  const [isImageZoomed, setIsImageZoomed] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  
-=======
-=======
-=======
->>>>>>> Stashed changes
 
   // 画像拡大機能用のstate（老眼対応）
   const [isImageZoomed, setIsImageZoomed] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
-
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
->>>>>>> recovery-7d2-clean
   const [newBillData, setNewBillData] = useState({
     recorderName: currentUser || 'ゲストユーザー',
     contractType: '',
@@ -218,63 +200,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     return () => unsubscribe();
   }, [db, userId, appId, isAdmin]);
 
-<<<<<<< HEAD
-  // 料金年月分を統一フォーマットに正規化する関数（老眼対応・合算機能対応）
-  const normalizeBillingDate = (rawDate) => {
-    if (!rawDate) return '';
-    
-    let normalized = rawDate.trim();
-    
-    // 1. 令和→R変換
-    normalized = normalized.replace(/令和/g, 'R');
-    normalized = normalized.replace(/れいわ/g, 'R');
-    
-    // 2. 全角→半角変換
-    normalized = normalized.replace(/[Ｒ]/g, 'R');
-    normalized = normalized.replace(/[０-９]/g, (s) => 
-      String.fromCharCode(s.charCodeAt(0) - 0xFEE0)
-    );
-    
-    // 3. スペースの正規化（Rと数字の間にスペースを適切に挿入）
-    // 例：R76月分 → R7 6月分
-    normalized = normalized.replace(/R\s*(\d+)\s*(\d+月分)/g, 'R$1 $2');
-    
-    // 4. Rの後の数字と月の間にスペースがない場合の処理
-    // 例：R7 6月分、R76月分 など
-    if (!normalized.match(/R\d+\s+\d+月分/)) {
-      // R[数字][数字]月分 のパターンを探す
-      normalized = normalized.replace(/R(\d+)(\d)月分/g, 'R$1 $2月分');
-    }
-    
-    // 5. 余分なスペースを削除
-    normalized = normalized.replace(/\s+/g, ' ');
-    
-    // 6. 最終フォーマットチェック（R[数字] [数字]月分）
-    const match = normalized.match(/R(\d+)\s+(\d+)月分/);
-    if (match) {
-      return `R${match[1]} ${match[2]}月分`;
-    }
-    
-    // マッチしない場合は元の値を返す（エラーを起こさない）
-    return rawDate;
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    
-    // 料金年月分の場合は自動正規化
-    if (name === 'billingDate') {
-      const normalized = normalizeBillingDate(value);
-      setNewBillData(prev => ({ ...prev, [name]: normalized }));
-    } else {
-      setNewBillData(prev => ({ ...prev, [name]: value }));
-    }
-=======
-<<<<<<< Updated upstream
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setNewBillData(prev => ({ ...prev, [name]: value }));
-=======
   // 料金年月分を統一フォーマットに正規化する関数（老眼対応・合算機能対応）
   const normalizeBillingDate = (rawDate) => {
     if (!rawDate) return '';
@@ -313,7 +238,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
 
     // マッチしない場合は元の値を返す（エラーを起こさない）
     return rawDate;
->>>>>>> recovery-7d2-clean
   };
 
   const handleChange = (e) => {
@@ -326,7 +250,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     } else {
       setNewBillData(prev => ({ ...prev, [name]: value }));
     }
->>>>>>> Stashed changes
   };
 
   const handleImageUpload = (event) => {
@@ -352,91 +275,18 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
       setMessage('画像を先にアップロードしてください。');
       return;
     }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+
     setIsProcessing(true);
     setMessage('画像をAIが解析中です... (約5〜10秒かかることがあります)');
-    const mimeType = uploadedImageBase64.substring(5, uploadedImageBase64.indexOf(';'));
-    const base64Data = uploadedImageBase64.split(',')[1];
-    const systemPrompt = "あなたは電気の検針票から正確な数値と契約情報を抽出する専門家です。指示された情報を厳密にJSON形式でのみ出力してください。余計な説明やコメントは一切含めないでください。";
-    const userQuery = "添付された電気の検針票画像から、以下の情報を厳密にJSON形式で抽出しなさい。特に、料金の契約種別またはプラン名と、料金年月分（例: R7 6月分）をテキストとして正確に抽出してください。";
-    const responseSchema = {
-        type: "OBJECT",
-        properties: {
-            "usageKwh": { 
-                "type": "NUMBER", 
-                "description": "使用電力量 (kWh)。小数点以下も含む。必ず数値として出力。" 
-            },
-            "totalCost": { 
-                "type": "NUMBER", 
-                "description": "合計請求金額 (円)。必ず数値として出力。カンマは除去すること。" 
-            },
-            "periodDays": { 
-                "type": "NUMBER", 
-                "description": "検針期間の日数。必ず数値として出力。" 
-            },
-            "billingDate": { 
-                "type": "STRING", 
-                "description": "料金年月分を必ず「R[数字][半角スペース][数字]月分」の厳密な形式で出力すること。例: 'R7 6月分'。券面が「令和7年6月分」なら「R7 6月分」に変換。券面が「R76月分」（スペースなし）なら「R7 6月分」に修正。スペースは必ず半角1つ。数字も必ず半角。この形式以外では出力しないこと。日付が完全に不明な場合のみ空文字列。" 
-            },
-            "contractName": { 
-                "type": "STRING", 
-                "description": "電気の契約種別またはプラン名を正確に抽出すること。例: 低圧電力α, 灯季時別, 従量電灯B。表記ゆれに注意し統一すること（例:「低圧電力α」と「低圧電力a」は同じものとして「低圧電力α」で統一）。ギリシャ文字のαは必ずαで出力。" 
-            }
-        },
-        propertyOrdering: ["usageKwh", "totalCost", "periodDays", "billingDate", "contractName"]
-    };
-    const payload = {
-        contents: [{ role: "user", parts: [{ text: userQuery }, { inlineData: { mimeType, data: base64Data } }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: { responseMimeType: "application/json", responseSchema: responseSchema }
-    };
-    
-=======
 
->>>>>>> Stashed changes
-=======
-
->>>>>>> Stashed changes
     // 環境変数からAPIキーを取得（セキュリティ対策）
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
     if (!apiKey || apiKey === 'ここにGemini APIキーを入力') {
       setMessage('⚠️ Gemini APIキーが設定されていません。.env.localファイルにAPIキーを設定してください。');
+      setIsProcessing(false);
       return;
     }
-<<<<<<< HEAD
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-=======
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
->>>>>>> recovery-7d2-clean
-    try {
-        const response = await fetchWithExponentialBackoff(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!response.ok) throw new Error(`API response was not ok: ${response.statusText}`);
-        const result = await response.json();
-        const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!jsonText) throw new Error("APIから有効なJSON応答が得られませんでした。");
-        const parsedJson = JSON.parse(jsonText);
-        setOcrResultJson(parsedJson);
-        setNewBillData(prev => ({
-            ...prev,
-            usageKwh: parsedJson.usageKwh !== undefined ? String(parsedJson.usageKwh) : '',
-            totalCost: parsedJson.totalCost !== undefined ? String(parsedJson.totalCost) : '',
-            periodDays: parsedJson.periodDays !== undefined ? String(parsedJson.periodDays) : '',
-            billingDate: normalizeBillingDate(parsedJson.billingDate || ''),
-            contractType: parsedJson.contractName || prev.contractType, 
-        }));
-<<<<<<< HEAD
-        setMessage('✅ OCR解析が完了し、フォームにデータが自動入力されました。料金年月分は自動的に「R7 6月分」形式に統一されています。');
-=======
-        setMessage('✅ OCR解析が完了し、フォームにデータが自動入力されました。');
-=======
-
-    setIsProcessing(true);
-    setMessage('画像をAIが解析中です... (約5〜10秒かかることがあります)');
 
     const userQuery = "画像から以下の項目を抽出し、JSONで出力してください。\n\n1. 合計金額(円)\n2. 使用電力量(kWh)\n3. 検針期間の日数(30などの数値のみ)\n4. 契約種別\n5. 料金年月(R7 6月分)\n\n【最重要注意事項】\n・料金年月は「○ヶ月分」ではなく、必ず「○月分」です。「1ヶ月分」は間違いです。\n・契約種別の末尾にある記号（α、βなど）は絶対に見落とさないでください。「低圧電力」ではなく「低圧電力α」のように正確に。";
     const responseSchema = {
@@ -467,41 +317,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     };
 
     try {
-=======
-
-    setIsProcessing(true);
-    setMessage('画像をAIが解析中です... (約5〜10秒かかることがあります)');
-
-    const userQuery = "画像から以下の項目を抽出し、JSONで出力してください。\n\n1. 合計金額(円)\n2. 使用電力量(kWh)\n3. 検針期間の日数(30などの数値のみ)\n4. 契約種別\n5. 料金年月(R7 6月分)\n\n【最重要注意事項】\n・料金年月は「○ヶ月分」ではなく、必ず「○月分」です。「1ヶ月分」は間違いです。\n・契約種別の末尾にある記号（α、βなど）は絶対に見落とさないでください。「低圧電力」ではなく「低圧電力α」のように正確に。";
-    const responseSchema = {
-      type: "OBJECT",
-      properties: {
-        "usageKwh": {
-          "type": "NUMBER",
-          "description": "使用電力量 (kWh)。"
-        },
-        "totalCost": {
-          "type": "NUMBER",
-          "description": "合計請求金額 (円)。"
-        },
-        "periodDays": {
-          "type": "NUMBER",
-          "description": "検針期間の日数。「30日」や「29日」などの「日数」を抽出すること。「6月1日〜6月30日」のような日付範囲は絶対に含めない。純粋な数値のみ。"
-        },
-        "billingDate": {
-          "type": "STRING",
-          "description": "料金年月分。「R[数字] [数字]月分」形式。例: 'R7 6月分'。"
-        },
-        "contractName": {
-          "type": "STRING",
-          "description": "電気の契約種別。特に「低圧電力α」の「α」や「灯季時別」等を正確に抽出すること。記号を省略しない。"
-        }
-      },
-      propertyOrdering: ["usageKwh", "totalCost", "periodDays", "billingDate", "contractName"]
-    };
-
-    try {
->>>>>>> Stashed changes
       const parsedJson = await performOCR(uploadedImageBase64, apiKey, responseSchema, userQuery);
 
       if (!parsedJson) throw new Error("APIから有効なJSON応答が得られませんでした。");
@@ -516,11 +331,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
         contractType: parsedJson.contractName || prev.contractType,
       }));
       setMessage('✅ OCR解析が完了し、フォームにデータが自動入力されました。料金年月分は自動的に「R7 6月分」形式に統一されています。');
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
->>>>>>> recovery-7d2-clean
     } catch (error) {
       console.error('OCR API Error:', error);
       setMessage(`OCR解析エラー: ${error.message}。手動でデータを入力してください。`);
@@ -762,109 +572,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
           <h2 className="text-lg md:text-2xl font-bold text-indigo-800 mb-3 md:mb-5 border-b pb-2">📸 OCR機能: 検針票の画像をアップロード</h2>
           <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isProcessing} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 mb-4" />
           {uploadedImageBase64 && (
-<<<<<<< HEAD
-            <div className="space-y-6">
-              {/* OCR解析ボタン（最上部に配置） */}
-              <button 
-                onClick={handleOCRProcess} 
-                disabled={isProcessing} 
-                className="w-full px-6 py-4 text-xl md:text-2xl border border-transparent rounded-xl shadow-2xl text-white font-bold bg-green-500 hover:bg-green-600 disabled:opacity-50 flex items-center justify-center transition-all"
-              >
-                {isProcessing ? '🔄 AI解析中...' : '✨ OCR解析を実行する'}
-              </button>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* 左側：アップロードした画像 */}
-                <div className="border-4 border-blue-400 rounded-xl p-4 bg-blue-50">
-                  <h3 className="text-xl md:text-2xl font-bold mb-3 text-blue-800 flex items-center">
-                    📷 撮影した検針票
-                  </h3>
-                  <div className="relative">
-                    <img 
-                      src={uploadedImageBase64} 
-                      alt="検針票" 
-                      className="w-full max-w-2xl cursor-pointer border-2 border-gray-300 rounded-lg shadow-lg hover:shadow-2xl transition-shadow" 
-                      onClick={() => setIsImageZoomed(true)}
-                      style={{ maxHeight: '500px', objectFit: 'contain' }}
-                    />
-                    <p className="text-center mt-3 text-blue-700 font-bold text-lg">
-                      👆 クリックで拡大表示
-                    </p>
-                  </div>
-                </div>
-
-                {/* 右側：OCR読み取り結果（超大きい文字） */}
-                <div className="border-4 border-green-400 rounded-xl p-4 bg-green-50">
-                  <h3 className="text-xl md:text-2xl font-bold mb-3 text-green-800 flex items-center">
-                    ✅ 読み取り結果
-                  </h3>
-                  
-                  {ocrResultJson ? (
-                    <div className="space-y-4">
-                      {/* 料金年月分 */}
-                      <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
-                        <p className="text-sm text-gray-600 font-medium mb-1">📅 料金年月分</p>
-                        <p className="text-3xl md:text-4xl font-bold text-blue-600">
-                          {ocrResultJson.billingDate || '未入力'}
-                        </p>
-                      </div>
-
-                      {/* 契約種別 */}
-                      <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
-                        <p className="text-sm text-gray-600 font-medium mb-1">📋 契約種別</p>
-                        <p className="text-2xl md:text-3xl font-bold text-indigo-600">
-                          {ocrResultJson.contractName || '未入力'}
-                        </p>
-                      </div>
-
-                      {/* 使用量 */}
-                      <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
-                        <p className="text-sm text-gray-600 font-medium mb-1">⚡ 使用量</p>
-                        <p className="text-3xl md:text-4xl font-bold text-green-600">
-                          {ocrResultJson.usageKwh} <span className="text-2xl">kWh</span>
-                        </p>
-                      </div>
-
-                      {/* 料金 */}
-                      <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
-                        <p className="text-sm text-gray-600 font-medium mb-1">💰 合計料金</p>
-                        <p className="text-4xl md:text-5xl font-bold text-red-600">
-                          {ocrResultJson.totalCost?.toLocaleString()} <span className="text-2xl">円</span>
-                        </p>
-                      </div>
-
-                      {/* 日数 */}
-                      <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
-                        <p className="text-sm text-gray-600 font-medium mb-1">📆 検針期間</p>
-                        <p className="text-3xl md:text-4xl font-bold text-purple-600">
-                          {ocrResultJson.periodDays} <span className="text-2xl">日</span>
-                        </p>
-                      </div>
-
-                      <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mt-4">
-                        <p className="text-lg md:text-xl font-bold text-yellow-800 text-center">
-                          👆 この内容で間違いありませんか？
-                        </p>
-                        <p className="text-base text-gray-700 text-center mt-2">
-                          間違いがあれば、下のフォームで修正できます
-                        </p>
-                      </div>
-                    </div>
-=======
-<<<<<<< Updated upstream
-            <div className="flex flex-col md:flex-row gap-4 mb-4 items-start">
-              <div className="md:w-1/3 w-full border border-gray-300 rounded-lg p-2 bg-gray-50">
-                <img src={uploadedImageBase64} alt="Uploaded Bill" className="w-full max-w-xs max-h-64 object-contain h-auto rounded-lg shadow-md" />
-              </div>
-              <div className="md:w-2/3 w-full space-y-3">
-                <button onClick={handleOCRProcess} disabled={isProcessing} className="w-full px-6 py-3 border border-transparent rounded-lg shadow-lg text-white font-semibold bg-green-400 hover:bg-green-500 disabled:opacity-50 flex items-center justify-center">
-                  {isProcessing ? 'AI解析中...' : 'OCR解析を実行する'}
-                </button>
-                {ocrResultJson && (
-                    <div className="p-3 bg-gray-100 border border-gray-300 rounded-lg text-sm">
-                        <pre className="whitespace-pre-wrap break-words text-xs text-gray-600 bg-gray-200 p-2 rounded">{JSON.stringify(ocrResultJson, null, 2)}</pre>
-                    </div>
-=======
             <div className="space-y-6">
               {/* OCR解析ボタン（最上部に配置） */}
               <button
@@ -937,15 +644,12 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
 
                       {/* 日数 */}
                       <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
-                        <p className="text-sm text-gray-600 font-medium mb-1">📆 検針期間 (日数)</p>
+                        <p className="text-sm text-gray-600 font-medium mb-1">📆 検針期間</p>
                         <p className="text-3xl md:text-4xl font-bold text-purple-600">
                           {ocrResultJson.periodDays} <span className="text-2xl">日</span>
                         </p>
                       </div>
-
-
                     </div>
->>>>>>> recovery-7d2-clean
                   ) : (
                     <div className="flex items-center justify-center h-64 text-gray-400">
                       <div className="text-center">
@@ -955,25 +659,19 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                     </div>
                   )}
                 </div>
-<<<<<<< HEAD
-=======
-                {/* 確認メッセージ（欄外・下に配置） */}
-                {ocrResultJson && (
-                  <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mt-4 shadow-lg">
-                    <p className="text-lg md:text-xl font-bold text-yellow-800 text-center">
-                      👆 この内容で間違いありませんか？
-                    </p>
-                    <p className="text-base text-gray-700 text-center mt-2">
-                      間違いがあれば、下のフォームで修正できます
-                    </p>
-                  </div>
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-                )}
->>>>>>> recovery-7d2-clean
               </div>
+
+              {/* 確認メッセージ（欄外・下に配置） */}
+              {ocrResultJson && (
+                <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mt-4 shadow-lg">
+                  <p className="text-lg md:text-xl font-bold text-yellow-800 text-center">
+                    👆 この内容で間違いありませんか？
+                  </p>
+                  <p className="text-base text-gray-700 text-center mt-2">
+                    間違いがあれば、下のフォームで修正できます
+                  </p>
+                </div>
+              )}
 
               {/* デバッグ用の生JSON表示（小さく表示） */}
               {ocrResultJson && (
@@ -989,44 +687,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
             </div>
           )}
         </section>
-<<<<<<< HEAD
-        <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl mb-6 md:mb-10 border-4 border-yellow-300">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-5 border-b-4 pb-3 flex items-center">
-            📝 検針票データの登録・編集
-            <span className="ml-4 text-lg text-yellow-600">(OCR結果を確認・修正できます)</span>
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* 1カラムレイアウトに変更（ずれを防ぐ） */}
-            <div className="space-y-6">
-              {/* 記録者名 */}
-              <div>
-                <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
-                  👤 記録者名
-                </label>
-                <input 
-                  type="text" 
-                  name="recorderName" 
-                  value={newBillData.recorderName} 
-                  onChange={handleChange} 
-                  readOnly={!isAdmin} 
-                  className={`block w-full rounded-xl border-4 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 ${!isAdmin ? 'bg-gray-100' : 'border-gray-300'}`}
-                  style={{ fontSize: '28px' }}
-                />
-              </div>
-=======
-<<<<<<< Updated upstream
-        <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl mb-6 md:mb-10 border border-gray-200">
-          <h2 className="text-lg md:text-2xl font-bold text-gray-800 mb-3 md:mb-5 border-b pb-2">📝 検針票データの登録・編集</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">記録者名</label>
-                <input type="text" name="recorderName" value={newBillData.recorderName} onChange={handleChange} readOnly={!isAdmin} className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border text-base md:text-lg font-semibold ${!isAdmin ? 'bg-gray-100' : ''}`} />
-              </div>
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">契約種別 (必須) <span className="text-red-500">*</span></label>
-                <input type="text" name="contractType" value={newBillData.contractType} onChange={handleChange} placeholder="例: 低圧電力α, 灯季時別" required className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg font-semibold" />
-=======
         <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl mb-6 md:mb-10 border-4 border-yellow-300">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-5 border-b-4 pb-3 flex items-center">
             📝 検針票データの登録・編集
@@ -1050,22 +710,12 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                   style={{ fontSize: '28px' }}
                 />
               </div>
->>>>>>> recovery-7d2-clean
 
               {/* 契約種別 */}
               <div>
                 <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
                   📋 契約種別 <span className="text-red-500 text-3xl">*</span>
                 </label>
-<<<<<<< HEAD
-                <input 
-                  type="text" 
-                  name="contractType" 
-                  value={newBillData.contractType} 
-                  onChange={handleChange} 
-                  placeholder="例: 低圧電力α" 
-                  required 
-=======
                 <input
                   type="text"
                   name="contractType"
@@ -1073,7 +723,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                   onChange={handleChange}
                   placeholder="例: 低圧電力α"
                   required
->>>>>>> recovery-7d2-clean
                   className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
                   style={{ fontSize: '28px' }}
                 />
@@ -1084,21 +733,12 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                 <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
                   📅 料金年月分
                 </label>
-<<<<<<< HEAD
-                <input 
-                  type="text" 
-                  name="billingDate" 
-                  value={newBillData.billingDate} 
-                  onChange={handleChange} 
-                  placeholder="例: R7 6月分" 
-=======
                 <input
                   type="text"
                   name="billingDate"
                   value={newBillData.billingDate}
                   onChange={handleChange}
                   placeholder="例: R7 6月分"
->>>>>>> recovery-7d2-clean
                   className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
                   style={{ fontSize: '28px' }}
                 />
@@ -1109,16 +749,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                 <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
                   ⚡ 使用量 (kWh) <span className="text-red-500 text-3xl">*</span>
                 </label>
-<<<<<<< HEAD
-                <input 
-                  type="number" 
-                  name="usageKwh" 
-                  value={newBillData.usageKwh} 
-                  onChange={handleChange} 
-                  placeholder="例: 350.5" 
-                  required 
-                  step="0.01" 
-=======
                 <input
                   type="number"
                   name="usageKwh"
@@ -1127,7 +757,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                   placeholder="例: 350.5"
                   required
                   step="0.01"
->>>>>>> recovery-7d2-clean
                   className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
                   style={{ fontSize: '28px' }}
                 />
@@ -1138,16 +767,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                 <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
                   💰 合計料金 (円) <span className="text-red-500 text-3xl">*</span>
                 </label>
-<<<<<<< HEAD
-                <input 
-                  type="number" 
-                  name="totalCost" 
-                  value={newBillData.totalCost} 
-                  onChange={handleChange} 
-                  placeholder="例: 12500" 
-                  required 
-                  step="1" 
-=======
                 <input
                   type="number"
                   name="totalCost"
@@ -1156,7 +775,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                   placeholder="例: 12500"
                   required
                   step="1"
->>>>>>> recovery-7d2-clean
                   className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
                   style={{ fontSize: '28px' }}
                 />
@@ -1167,19 +785,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                 <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
                   📆 検針期間 (日) <span className="text-red-500 text-3xl">*</span>
                 </label>
-<<<<<<< HEAD
-                <input 
-                  type="number" 
-                  name="periodDays" 
-                  value={newBillData.periodDays} 
-                  onChange={handleChange} 
-                  placeholder="例: 30" 
-                  required 
-                  step="1" 
-                  className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
-                  style={{ fontSize: '28px' }}
-                />
-=======
                 <input
                   type="number"
                   name="periodDays"
@@ -1191,61 +796,33 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                   className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-2xl md:text-3xl font-bold focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
                   style={{ fontSize: '28px' }}
                 />
->>>>>>> Stashed changes
->>>>>>> recovery-7d2-clean
               </div>
             </div>
-<<<<<<< HEAD
-=======
-<<<<<<< Updated upstream
-            <div><label className="block text-sm font-medium text-gray-700">メモ/備考</label><textarea name="notes" value={newBillData.notes} onChange={handleChange} rows="2" className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" placeholder="エアコン使用状況や季節変動など..."></textarea></div>
-            <button type="submit" disabled={!db || !userId} className="w-full md:w-auto px-6 py-3 border border-transparent rounded-lg shadow-lg text-white font-semibold bg-sky-400 hover:bg-sky-500 disabled:opacity-50">データを登録する</button>
-=======
->>>>>>> recovery-7d2-clean
 
             {/* メモ欄 */}
             <div>
               <label className="block text-xl md:text-2xl font-bold text-gray-700 mb-2">
                 📝 メモ/備考
               </label>
-<<<<<<< HEAD
-              <textarea 
-                name="notes" 
-                value={newBillData.notes} 
-                onChange={handleChange} 
-                rows="3" 
-                className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-xl md:text-2xl focus:ring-4 focus:ring-blue-300 focus:border-blue-500" 
-=======
               <textarea
                 name="notes"
                 value={newBillData.notes}
                 onChange={handleChange}
                 rows="3"
                 className="block w-full rounded-xl border-4 border-gray-300 shadow-lg p-4 text-xl md:text-2xl focus:ring-4 focus:ring-blue-300 focus:border-blue-500"
->>>>>>> recovery-7d2-clean
                 placeholder="エアコン使用状況や季節変動など..."
                 style={{ fontSize: '20px' }}
               ></textarea>
             </div>
 
             {/* 保存ボタン（超大きい） */}
-<<<<<<< HEAD
-            <button 
-              type="submit" 
-              disabled={!db || !userId} 
-=======
             <button
               type="submit"
               disabled={!db || !userId}
->>>>>>> recovery-7d2-clean
               className="w-full px-8 py-6 border-4 border-transparent rounded-2xl shadow-2xl text-white font-bold bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-3xl md:text-4xl transition-all transform hover:scale-105"
             >
               ✅ この内容で保存する
             </button>
-<<<<<<< HEAD
-=======
->>>>>>> Stashed changes
->>>>>>> recovery-7d2-clean
           </form>
         </section>
         <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl">
@@ -1306,29 +883,16 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
           </div>
         </section>
       </main>
-<<<<<<< HEAD
-
-      {/* 画像拡大モーダル（老眼対応） */}
-      {isImageZoomed && uploadedImageBase64 && (
-        <div 
-=======
-<<<<<<< Updated upstream
-=======
 
       {/* 画像拡大モーダル（老眼対応） */}
       {isImageZoomed && uploadedImageBase64 && (
         <div
->>>>>>> recovery-7d2-clean
           className="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center p-4"
           onClick={() => setIsImageZoomed(false)}
         >
           <div className="relative w-full h-full flex flex-col items-center justify-center">
             {/* 閉じるボタン（右上） */}
-<<<<<<< HEAD
-            <button 
-=======
             <button
->>>>>>> recovery-7d2-clean
               onClick={() => setIsImageZoomed(false)}
               className="absolute top-4 right-4 bg-white hover:bg-gray-200 text-gray-800 font-bold py-3 px-6 rounded-full shadow-2xl text-2xl z-10 transition-all"
             >
@@ -1337,11 +901,7 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
 
             {/* ズーム操作ボタン（右下） */}
             <div className="absolute bottom-4 right-4 flex flex-col space-y-3 z-10">
-<<<<<<< HEAD
-              <button 
-=======
               <button
->>>>>>> recovery-7d2-clean
                 onClick={(e) => {
                   e.stopPropagation();
                   setZoomLevel(prev => Math.min(prev + 0.25, 3));
@@ -1351,11 +911,7 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
               >
                 ➕
               </button>
-<<<<<<< HEAD
-              <button 
-=======
               <button
->>>>>>> recovery-7d2-clean
                 onClick={(e) => {
                   e.stopPropagation();
                   setZoomLevel(1);
@@ -1365,11 +921,7 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
               >
                 100%
               </button>
-<<<<<<< HEAD
-              <button 
-=======
               <button
->>>>>>> recovery-7d2-clean
                 onClick={(e) => {
                   e.stopPropagation();
                   setZoomLevel(prev => Math.max(prev - 0.25, 0.5));
@@ -1389,17 +941,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
             </div>
 
             {/* 画像本体 */}
-<<<<<<< HEAD
-            <div 
-              className="overflow-auto max-w-full max-h-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <img 
-                src={uploadedImageBase64} 
-                alt="検針票（拡大表示）" 
-                className="transition-transform duration-300"
-                style={{ 
-=======
             <div
               className="overflow-auto max-w-full max-h-full"
               onClick={(e) => e.stopPropagation()}
@@ -1409,7 +950,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                 alt="検針票（拡大表示）"
                 className="transition-transform duration-300"
                 style={{
->>>>>>> recovery-7d2-clean
                   transform: `scale(${zoomLevel})`,
                   maxWidth: 'none',
                   cursor: 'grab'
@@ -1419,10 +959,6 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
           </div>
         </div>
       )}
-<<<<<<< HEAD
-=======
->>>>>>> Stashed changes
->>>>>>> recovery-7d2-clean
     </div>
   );
 };

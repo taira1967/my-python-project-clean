@@ -19,9 +19,11 @@ export const performOCR = async (base64Image, apiKey, schema, customPrompt = "")
             ]
         }]
     };
-    // 互換性が最も高い gemini-pro を使用
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
-    // 3. API実行 (リトライ処理付き)
+// 互換性が最も高い gemini-1.5-flash を使
+const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+// 3. API実行 (リトライ処理付き)
+
     let response;
     let retries = 3;
     while (retries > 0) {
