@@ -140,13 +140,19 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
   const [adminRecorderFilter, setAdminRecorderFilter] = useState('all');
   const [message, setMessage] = useState('');
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   
 =======
+=======
+>>>>>>> Stashed changes
 
   // 画像拡大機能用のstate（老眼対応）
   const [isImageZoomed, setIsImageZoomed] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   const [newBillData, setNewBillData] = useState({
     recorderName: currentUser || 'ゲストユーザー',
@@ -287,6 +293,7 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
       return;
     }
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     setIsProcessing(true);
     setMessage('画像をAIが解析中です... (約5〜10秒かかることがあります)');
     const mimeType = uploadedImageBase64.substring(5, uploadedImageBase64.indexOf(';'));
@@ -313,6 +320,9 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
 =======
 
 >>>>>>> Stashed changes
+=======
+
+>>>>>>> Stashed changes
     // 環境変数からAPIキーを取得（セキュリティ対策）
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -320,6 +330,7 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
       setMessage('⚠️ Gemini APIキーが設定されていません。.env.localファイルにAPIキーを設定してください。');
       return;
     }
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
     
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
@@ -374,6 +385,41 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
     };
 
     try {
+=======
+
+    setIsProcessing(true);
+    setMessage('画像をAIが解析中です... (約5〜10秒かかることがあります)');
+
+    const userQuery = "画像から以下の項目を抽出し、JSONで出力してください。\n\n1. 合計金額(円)\n2. 使用電力量(kWh)\n3. 検針期間の日数(30などの数値のみ)\n4. 契約種別\n5. 料金年月(R7 6月分)\n\n【最重要注意事項】\n・料金年月は「○ヶ月分」ではなく、必ず「○月分」です。「1ヶ月分」は間違いです。\n・契約種別の末尾にある記号（α、βなど）は絶対に見落とさないでください。「低圧電力」ではなく「低圧電力α」のように正確に。";
+    const responseSchema = {
+      type: "OBJECT",
+      properties: {
+        "usageKwh": {
+          "type": "NUMBER",
+          "description": "使用電力量 (kWh)。"
+        },
+        "totalCost": {
+          "type": "NUMBER",
+          "description": "合計請求金額 (円)。"
+        },
+        "periodDays": {
+          "type": "NUMBER",
+          "description": "検針期間の日数。「30日」や「29日」などの「日数」を抽出すること。「6月1日〜6月30日」のような日付範囲は絶対に含めない。純粋な数値のみ。"
+        },
+        "billingDate": {
+          "type": "STRING",
+          "description": "料金年月分。「R[数字] [数字]月分」形式。例: 'R7 6月分'。"
+        },
+        "contractName": {
+          "type": "STRING",
+          "description": "電気の契約種別。特に「低圧電力α」の「α」や「灯季時別」等を正確に抽出すること。記号を省略しない。"
+        }
+      },
+      propertyOrdering: ["usageKwh", "totalCost", "periodDays", "billingDate", "contractName"]
+    };
+
+    try {
+>>>>>>> Stashed changes
       const parsedJson = await performOCR(uploadedImageBase64, apiKey, responseSchema, userQuery);
 
       if (!parsedJson) throw new Error("APIから有効なJSON応答が得られませんでした。");
@@ -388,6 +434,9 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
         contractType: parsedJson.contractName || prev.contractType,
       }));
       setMessage('✅ OCR解析が完了し、フォームにデータが自動入力されました。料金年月分は自動的に「R7 6月分」形式に統一されています。');
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     } catch (error) {
       console.error('OCR API Error:', error);
@@ -743,6 +792,9 @@ const MainApp = ({ currentUser, isAdmin, onLogout, db, userId, appId }) => {
                       間違いがあれば、下のフォームで修正できます
                     </p>
                   </div>
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
                 )}
               </div>

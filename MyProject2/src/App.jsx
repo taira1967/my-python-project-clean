@@ -1,4 +1,5 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import React, { useState } from 'react';
 
 const App = () => {
@@ -103,6 +104,8 @@ const App = () => {
     </div>
   );
 =======
+=======
+>>>>>>> Stashed changes
 console.log("HELLO");
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
@@ -344,6 +347,9 @@ const App = () => {
   return state.isLoggedIn ?
     <MainApp currentUser={getAuth().currentUser?.email} onLogout={() => signOut(state.auth)} db={state.db} userId={state.userId} appId="default-app" /> :
     <LoginScreen onLogin={(e, p) => signInWithEmailAndPassword(state.auth, e, p)} loginError={state.error} />;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 };
 export default App;
